@@ -5,6 +5,8 @@ For someone who has never used it. No proxy, no certificates, no prior knowledge
 Read this once (15 minutes), run the demo, and you will understand every output the tool
 prints for the rest of your hunting life.
 
+Fast lookup later: [`REFERENCE.md`](REFERENCE.md) — every command, every field, every use case.
+
 ---
 
 ## 1. The problem this solves

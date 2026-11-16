@@ -85,6 +85,8 @@ Stop a hypothesis after **two clean attempts**. `dead` = never retry without a n
 | `livehunt reset <t> --yes` | only on explicit request — archives the state |
 | `livehunt stop <t>` | session end |
 
+Column meanings, the score maths and ten worked use cases: `docs/REFERENCE.md`.
+
 ## 5. Failure handling
 
 | Symptom | Action |

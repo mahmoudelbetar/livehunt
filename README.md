@@ -93,7 +93,8 @@ a time with you. The skill follows [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md).
 
 ## Docs
 
-- [`docs/MANUAL.md`](docs/MANUAL.md) — **start here**: the idea, the demo, three worked examples
+- [`docs/REFERENCE.md`](docs/REFERENCE.md) — **look things up here**: every command and flag, every output field, the score maths, 10 use cases, the token ladder
+- [`docs/MANUAL.md`](docs/MANUAL.md) — **read once**: the idea, the demo, three worked examples
 - [`docs/FIRST-LOOK.md`](docs/FIRST-LOOK.md) — 5-minute guide for a first-time hunter
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — install → first hypothesis, step by step
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — the daily loop
