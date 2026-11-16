@@ -30,7 +30,7 @@ except ImportError:                    # run as a script
     from hosts import DEFAULT_PORTS, HostFilter, normalize_hosts
 
 SKIP_MIME = ("image/", "font/", "video/", "audio/", "text/css")
-SKIP_EXT = re.compile(r"\.(png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|eot|css|mp4|webm|map)(\?|$)", re.I)
+SKIP_EXT = re.compile(r"\.(png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|eot|css|m?js|jsx|ts|mp4|webm|map)(\?|$)", re.I)
 DEFAULT_EXCLUDE = r"^/cdn-cgi/|^/__cf|/sentry|\.well-known|favicon|/rum\b"
 
 SCHEMA = """

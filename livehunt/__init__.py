@@ -1,2 +1,2 @@
 """livehunt — passive live-capture toolkit for web hunters."""
-__version__ = "0.8.0"
+__version__ = "0.8.1"

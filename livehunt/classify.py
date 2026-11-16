@@ -21,7 +21,7 @@ SSRF_PARAMS = re.compile(r"^(url|uri|link|callback|webhook|redirect|next|returnu
 UPLOAD_PATH = re.compile(r"upload|avatar|profile/image|attachment|import|file", re.I)
 AUTH_PATH = re.compile(r"login|logout|token|session|password|reset|otp|2fa|mfa|register|signup|verify|captcha|security-question", re.I)
 INFO_PATH = re.compile(r"config|version|debug|actuator|swagger|openapi|graphql|/env|/metrics|heapdump", re.I)
-ADMIN_PATH = re.compile(r"(^|/)(admin|internal|manage|backoffice|staff)(/|$)", re.I)
+ADMIN_PATH = re.compile(r"(^|/)(admin|internal|manage|backoffice|staff)[a-z]*", re.I)
 RACE_KEYS = re.compile(r"qty|quantity|amount|coupon|redeem|claim|transfer|withdraw|vote|like", re.I)
 NOISE_PATH = re.compile(r"^/cdn-cgi/|^/__cf|/sentry|\.well-known|favicon|/rum\b", re.I)
 
