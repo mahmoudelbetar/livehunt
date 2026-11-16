@@ -94,6 +94,37 @@ def db_counts(d):
         c.close()
 
 
+def hint(a, msg):
+    if getattr(a, "quiet", False):
+        return
+    print(f"\nnext → {msg}")
+
+
+def top_todo(d):
+    db = os.path.join(d, "live.db")
+    if not os.path.exists(db):
+        return None
+    import sqlite3
+    con = sqlite3.connect(db)
+    con.row_factory = sqlite3.Row
+    try:
+        return con.execute("select id,method,path_template from hypotheses where status='TODO' "
+                           "order by score desc, count desc limit 1").fetchone()
+    except Exception:
+        return None
+    finally:
+        con.close()
+
+
+def next_after_surf(a, d):
+    h = top_todo(d)
+    if h:
+        hint(a, f"livehunt test {a.target} {h['id']} <confirmed|dead|blocked>  "
+                f"({h['method']} {h['path_template']})")
+    else:
+        hint(a, f"surf one more flow, then: livehunt drain {a.target}")
+
+
 def cmd_init(a):
     d = tdir(a.target)
     os.makedirs(d, exist_ok=True)
@@ -114,7 +145,7 @@ def cmd_init(a):
             with open(p, "w") as f:
                 f.write(body)
     print(f"initialised {d}")
-    print(f"next: livehunt chrome --print   then   livehunt up {a.target}")
+    hint(a, f"livehunt chrome --print   then   livehunt up {a.target}")
 
 
 def cmd_start(a):
@@ -139,6 +170,7 @@ def cmd_start(a):
                               "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
                               "max_body": a.max_body or 262144})
     print(f"started pid {p.pid} · hosts={hosts} · out={d}")
+    hint(a, f"surf the app, then: livehunt drain {a.target}")
 
 
 def cmd_stop(a):
@@ -146,6 +178,7 @@ def cmd_stop(a):
     st, pid = running(d)
     if not pid:
         print("not running")
+        hint(a, f"livehunt up {a.target} to start")
         return
     os.kill(pid, signal.SIGTERM)
     for _ in range(20):
@@ -160,6 +193,7 @@ def cmd_stop(a):
     st["pid"] = None
     st["stopped"] = time.strftime("%Y-%m-%dT%H:%M:%S")
     save_atomic(run_json(d), st)
+    hint(a, f"update stash.md + STATE.md, or: livehunt up {a.target}")
 
 
 def cmd_resume(a):
@@ -167,6 +201,7 @@ def cmd_resume(a):
     st, pid = running(d)
     if pid:
         print(f"already running (pid {pid})")
+        hint(a, f"livehunt drain {a.target}")
         return
     st = load(run_json(d), {})
     if not st.get("hosts"):
@@ -201,6 +236,11 @@ def cmd_status(a):
     print(f"disk        {size/1e6:.1f} MB")
     if os.path.exists(delta):
         print(f"last drain  {time.strftime('%Y-%m-%d %H:%M', time.localtime(os.path.getmtime(delta)))}")
+    unclassified = (c.get("flows", 0) - c.get("cursor", 0)) if c else 0
+    if unclassified:
+        hint(a, f"livehunt drain {a.target}  ({unclassified} new flow(s))")
+    else:
+        hint(a, f"livehunt brief {a.target}")
 
 
 def cmd_brief(a):
@@ -242,6 +282,12 @@ def cmd_brief(a):
         once = con.execute("select count(*) from (select 1 from flows group by path_template having count(*)=1)").fetchone()[0]
         print(f"coverage  {con.execute('select count(distinct path_template) from flows').fetchone()[0]} endpoints seen"
               f" · {once} seen only once")
+        h = con.execute("select id,method,path_template from hypotheses where status='TODO' "
+                        "order by score desc, count desc limit 1").fetchone()
+        if h:
+            hint(a, f"livehunt test {a.target} {h['id']} <confirmed|dead|blocked>  ({h['method']} {h['path_template']})")
+        else:
+            hint(a, f"surf one more flow, then: livehunt drain {a.target}")
     finally:
         con.close()
 
@@ -251,11 +297,17 @@ def cmd_drain(a):
     if not os.path.exists(os.path.join(d, "live.db")):
         sys.exit("no live.db — start capture first")
     subprocess.call([sys.executable, CLASSIFY, "--out", d] + (["--rebuild"] if a.rebuild else []))
+    next_after_surf(a, d)
 
 
 def cmd_query(a):
     d = tdir(a.target)
     subprocess.call([sys.executable, QUERY, "--out", d, a.view] + a.args)
+    h = top_todo(d)
+    if h:
+        hint(a, f"livehunt test {a.target} {h['id']} <result>  ({h['method']} {h['path_template']})")
+    else:
+        hint(a, f"livehunt query {a.target} writes")
 
 
 def cmd_test(a):
@@ -285,6 +337,10 @@ def cmd_test(a):
         con.execute("update hypotheses set status=? where id=?", (status, a.hyp_id))
     con.commit()
     print(f"recorded H{a.hyp_id} -> {a.result} ({action})")
+    if a.result == "confirmed":
+        hint(a, f"livehunt export {a.target}  (keep the flow id as evidence, then write it up)")
+    else:
+        hint(a, f"livehunt brief {a.target}  (next hypothesis)")
 
 
 def cmd_doctor(a):
@@ -328,9 +384,11 @@ def cmd_doctor(a):
     free = shutil.disk_usage(d if os.path.isdir(d) else ROOT).free / 1e9
     chk("disk free", free > 1, f"{free:.1f} GB")
     print("doctor:", "clean" if ok else "issues above — see docs/TROUBLESHOOTING.md")
+    hint(a, f"livehunt up {a.target}" if ok else "docs/TROUBLESHOOTING.md")
 
 
 def cmd_up(a):
+    a.quiet = True
     cmd_doctor(a)
     d = tdir(a.target)
     st, pid = running(d)
@@ -341,10 +399,13 @@ def cmd_up(a):
             cmd_start(a)
         else:
             print("not started — add --hosts on first run")
+    a.quiet = True
     print()
     cmd_status(a)
     print()
     cmd_brief(a)
+    a.quiet = False
+    next_after_surf(a, d)
 
 
 def cmd_export(a):
@@ -373,6 +434,7 @@ def cmd_export(a):
     out = os.path.join(d, "bundle.json")
     save_atomic(out, bundle)
     print(f"exported {out} ({os.path.getsize(out)} B, no bodies)")
+    hint(a, "attach bundle.json to your report or issue — it contains no bodies")
 
 
 CHROME = {
