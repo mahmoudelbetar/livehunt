@@ -692,68 +692,103 @@ def cmd_chrome(a):
 
 
 def main():
-    ap = argparse.ArgumentParser(prog="livehunt", description="passive live-capture toolkit for web hunters")
+    ap = argparse.ArgumentParser(
+        prog="livehunt",
+        description="passive live-capture toolkit for web hunters — records what Chrome sends, "
+                    "never sends a request itself",
+        epilog="start here: livehunt up <target> --hosts <host>   ·   docs: docs/REFERENCE.md")
     ap.add_argument("--version", action="version", version=f"livehunt {__version__}")
-    sub = ap.add_subparsers(dest="cmd", required=True)
+    sub = ap.add_subparsers(dest="cmd", required=True, metavar="<command>")
 
-    def add(name, fn):
-        p = sub.add_parser(name)
-        p.add_argument("target")
+    TARGET_HELP = "target name — also its folder name under $BOUNTY_ROOT (default ~/bounty)"
+    HOSTS_HELP = ("comma-separated hosts to record, e.g. app.example.com,api.example.com — "
+                  "host, host:port, full URL or *.domain; nothing else in the browser is stored")
+    CDP_HELP = "Chrome DevTools endpoint (default http://127.0.0.1:9222, or $LIVE_CDP)"
+    MAXBODY_HELP = "bytes kept per request/response body (default 262144; 0 = use the saved value)"
+    KEEPSTATIC_HELP = "also record images, fonts, CSS and media — skipped by default"
+    FORCE_START_HELP = "start even if a capture for this target is already running"
+
+    def add(name, fn, help_text):
+        p = sub.add_parser(name, help=help_text, description=help_text)
+        p.add_argument("target", help=TARGET_HELP)
         p.set_defaults(fn=fn)
         return p
 
-    p = add("init", cmd_init)
-    p.add_argument("--hosts")
-    p.add_argument("--cdp")
-    p = add("start", cmd_start)
-    p.add_argument("--hosts")
-    p.add_argument("--cdp")
-    p.add_argument("--max-body", type=int, default=0)
-    p.add_argument("--keep-static", action="store_true")
-    p.add_argument("--force", action="store_true")
-    add("stop", cmd_stop)
-    add("resume", cmd_resume)
-    add("status", cmd_status)
-    add("brief", cmd_brief)
-    p = add("drain", cmd_drain)
-    p.add_argument("--rebuild", action="store_true")
-    p = add("query", cmd_query)
-    p.add_argument("view")
-    p.add_argument("args", nargs="*")
-    p = add("test", cmd_test)
-    p.add_argument("hyp_id", type=int)
-    p.add_argument("result", choices=["confirmed", "dead", "blocked", "partial", "observed"])
-    p.add_argument("--action")
-    p.add_argument("--flow", type=int)
-    p.add_argument("--note")
-    p.add_argument("--force", action="store_true")
-    p = add("note", cmd_note)
-    p.add_argument("text", nargs="+")
-    p.add_argument("--flow", type=int)
-    add("doctor", cmd_doctor)
-    add("export", cmd_export)
-    p = sub.add_parser("demo")
-    p.add_argument("name", nargs="?", default="demo")
-    p.add_argument("--force", action="store_true")
+    p = add("init", cmd_init, "create the target folder, configs and stash/STATE stubs (hosts required)")
+    p.add_argument("--hosts", help=HOSTS_HELP)
+    p.add_argument("--cdp", help=CDP_HELP)
+
+    p = add("start", cmd_start, "start capture for this target on the given hosts")
+    p.add_argument("--hosts", help=HOSTS_HELP)
+    p.add_argument("--cdp", help=CDP_HELP)
+    p.add_argument("--max-body", type=int, default=0, help=MAXBODY_HELP)
+    p.add_argument("--keep-static", action="store_true", help=KEEPSTATIC_HELP)
+    p.add_argument("--force", action="store_true", help=FORCE_START_HELP)
+
+    add("stop", cmd_stop, "stop capture for this target")
+    add("resume", cmd_resume, "restart capture with the hosts saved on the last start")
+    add("status", cmd_status, "one screen: capture, hosts, flows, cursor, objects, disk")
+    add("brief", cmd_brief, "what to do next: principals, top hypotheses, ledger, coverage")
+
+    p = add("drain", cmd_drain, "classify only the new flows; rewrites delta.md, context.md, chains.md")
+    p.add_argument("--rebuild", action="store_true",
+                   help="re-classify every flow and rebuild all hypotheses, objects and touches")
+
+    p = add("query", cmd_query, "canned hunting questions, one table each")
+    p.add_argument("view",
+                   help="objects | collisions | writes | ids | money | principals | once | object")
+    p.add_argument("args", nargs="*",
+                   help="view arguments — only `object` needs them: <kind> <id>, e.g. invoice 1001")
+
+    p = add("test", cmd_test, "record a test result; refuses to record the same action twice")
+    p.add_argument("hyp_id", type=int, help="hypothesis number as shown by brief/agent, e.g. 4 for H4")
+    p.add_argument("result", choices=["confirmed", "dead", "blocked", "partial", "observed"],
+                   help="confirmed=bug reproduced · dead=not a bug (never retested) · "
+                        "blocked=cannot test yet (needs a principal/object) · partial=signal only · "
+                        "observed=seen in traffic, nothing sent")
+    p.add_argument("--action", help="what the test did; defaults to the hypothesis method + path")
+    p.add_argument("--flow", type=int, help="flow id that is the evidence (the N in ev_N)")
+    p.add_argument("--note", help="one line of what you saw, e.g. '403 for a foreign id'")
+    p.add_argument("--force", action="store_true",
+                   help="re-record the same action — only if the target itself changed")
+
+    p = add("note", cmd_note, "record a fact that has no hypothesis row (score < 3, out-of-band finding)")
+    p.add_argument("text", nargs="+", help="the fact, in quotes — one sentence")
+    p.add_argument("--flow", type=int, help="flow id that is the evidence, if any")
+
+    add("doctor", cmd_doctor, "check the preconditions (python, deps, chrome cdp, hosts, db, disk)")
+    add("export", cmd_export, "write bundle.json — counts, configs and top hypotheses, no bodies")
+
+    p = sub.add_parser("demo", help="seed a synthetic target — every output with no browser",
+                       description="seed a synthetic target — every output with no browser")
+    p.add_argument("name", nargs="?", default="demo", help="demo target name (default: demo)")
+    p.add_argument("--force", action="store_true", help="overwrite an existing demo target")
     p.set_defaults(fn=cmd_demo)
-    p = add("agent", cmd_agent)
-    p.add_argument("--json", action="store_true")
-    p = add("reset", cmd_reset)
-    p.add_argument("--yes", action="store_true")
+
+    p = add("agent", cmd_agent, "one compact state block an AI can read instead of the traffic")
+    p.add_argument("--json", action="store_true", help="machine-readable JSON instead of the text block")
+
+    p = add("reset", cmd_reset, "archive and clear this target's capture state (needs --yes)")
+    p.add_argument("--yes", action="store_true", help="required confirmation — without it nothing happens")
     p.add_argument("--all", action="store_true", help="also archive contexts.json / rules.json")
     p.add_argument("--purge", action="store_true", help="delete instead of archiving")
-    p = add("up", cmd_up)
-    p.add_argument("--hosts")
-    p.add_argument("--cdp")
-    p.add_argument("--max-body", type=int, default=0)
-    p.add_argument("--keep-static", action="store_true")
-    p.add_argument("--force", action="store_true")
-    p = sub.add_parser("chrome")
+
+    p = add("up", cmd_up, "session start: opens Chrome, doctor, start/resume, status, brief")
+    p.add_argument("--hosts", help=HOSTS_HELP)
+    p.add_argument("--cdp", help=CDP_HELP)
+    p.add_argument("--max-body", type=int, default=0, help=MAXBODY_HELP)
+    p.add_argument("--keep-static", action="store_true", help=KEEPSTATIC_HELP)
+    p.add_argument("--force", action="store_true", help=FORCE_START_HELP)
+
+    p = sub.add_parser("chrome", help="print or launch Chrome with the DevTools port",
+                       description="print or launch Chrome with the DevTools port")
     p.add_argument("--print", action="store_true", help="print the command (default)")
     p.add_argument("--launch", action="store_true", help="open Chrome with the DevTools port")
     p.add_argument("--binary", help="explicit Chrome path (else auto-detected)")
     p.set_defaults(fn=cmd_chrome)
-    sub.add_parser("version").set_defaults(fn=lambda a: print(f"livehunt {__version__}"))
+
+    sub.add_parser("version", help="print the version").set_defaults(
+        fn=lambda a: print(f"livehunt {__version__}"))
 
     a = ap.parse_args()
     a.fn(a)
