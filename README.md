@@ -97,6 +97,7 @@ a time with you. The skill follows [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md).
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — install → first hypothesis, step by step
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — the daily loop
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — every failure we have hit, and the fix
+- [`docs/WHO-DOES-WHAT.md`](docs/WHO-DOES-WHAT.md) — tool vs model vs human, and the handoff between them
 - [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md) — how to work with an AI assistant, prompt by prompt
 - [`docs/AGENT.md`](docs/AGENT.md) — wiring it into an AI agent (AGENTS.md / hunt.md rules)
 - [`docs/FAQ.md`](docs/FAQ.md) — legal, privacy, disk, multiple targets

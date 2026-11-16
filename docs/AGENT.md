@@ -5,6 +5,8 @@ bottom into your agent config, or install the packaged skill (`skills/livehunt/S
 to `~/.agents/skills/` by `install.sh`) and just say **livehunt**. The rules exist to stop the two failure modes that waste a
 session: **re-reading captures** and **re-testing hypotheses**.
 
+Roles and the handoff: [`WHO-DOES-WHAT.md`](WHO-DOES-WHAT.md).
+
 ## Tool contract — what the agent calls, and when
 
 | Moment | Agent action | Why |

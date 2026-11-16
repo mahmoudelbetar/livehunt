@@ -180,8 +180,8 @@ With that, the model can say *"H4 is a write-IDOR on an object already seen unde
 test it as B with the amount set to 0"* — because the **data** made the object and the
 principals visible. Without it, the same model sees a URL and guesses.
 
-The interaction contract is in [`AI-GUIDE.md`](AI-GUIDE.md); the agent rules are in
-[`AGENT.md`](AGENT.md).
+The division of labour is in [`WHO-DOES-WHAT.md`](WHO-DOES-WHAT.md); the prompts are in
+[`AI-GUIDE.md`](AI-GUIDE.md); the agent rules are in [`AGENT.md`](AGENT.md).
 
 ---
 

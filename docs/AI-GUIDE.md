@@ -3,8 +3,8 @@
 The tool is built so an AI can reason about a session **without reading traffic**. It emits
 compact, stable, body-free state; the AI proposes one test at a time; you approve and send it.
 
-This guide is the interaction contract. The machine-readable version is in
-[`AGENT.md`](AGENT.md).
+This guide is the interaction contract. Who owns which job is in
+[`WHO-DOES-WHAT.md`](WHO-DOES-WHAT.md); the machine-readable version is in [`AGENT.md`](AGENT.md).
 
 ## The one call
 
