@@ -62,6 +62,7 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 | `livehunt brief <t>` | what to do next, in 15 lines |
 | `livehunt doctor <t>` | health checks |
 | `livehunt export <t>` | portable state bundle (no bodies) |
+| `livehunt reset <t> --yes` | archive the capture state and start the target fresh (`--purge` deletes, `--all` also resets config) |
 
 ## Safety and scope
 

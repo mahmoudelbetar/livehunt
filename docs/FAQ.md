@@ -36,6 +36,16 @@ covers them.
 The id had no nameable parent (`/api/items/{uuid}` with no body key). It is still a valid
 object key for joins; the kind is just a label.
 
+**How do I start a target over from scratch?**
+```bash
+livehunt reset <target> --yes      # archives old state to live/archive/<timestamp>/
+livehunt reset <target> --yes --purge   # deletes instead of archiving
+livehunt reset <target> --yes --all     # also resets contexts.json / rules.json
+```
+It stops capture first, then moves the DB, flows, docs and run.json out of the way. Your
+`stash.md` / `STATE.md` are outside `live/`, so they survive unless you delete them yourself.
+Refusing without `--yes` is intentional: reset is the only destructive command.
+
 **Multiple targets at once?**
 Yes: one capture process per target, each with its own `--out` and `--hosts`. Never point two
 captures at the same folder (`database is locked`).

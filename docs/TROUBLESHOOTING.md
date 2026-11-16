@@ -76,6 +76,14 @@ Schema migration runs automatically on start. If you see it from an old copy, ru
 livehunt drain <target> --rebuild
 ```
 
+### I want a clean slate for this target
+
+```bash
+livehunt reset <target> --yes            # archives to live/archive/<ts>/
+livehunt reset <target> --yes --purge    # delete, no archive
+```
+Do not `rm -rf` the live folder while capture runs — reset stops it first.
+
 ### Cursor ahead of max id (DB replaced / restored)
 
 `cursor sane` FAIL. Reset the cursor by rebuilding:

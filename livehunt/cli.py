@@ -408,6 +408,39 @@ def cmd_up(a):
     next_after_surf(a, d)
 
 
+def cmd_reset(a):
+    d = tdir(a.target)
+    if not os.path.isdir(d):
+        sys.exit(f"no such target dir: {d}")
+    if not a.yes:
+        sys.exit("refusing to reset without --yes "
+                 "(this archives the capture state; add --purge to delete it)")
+    st, pid = running(d)
+    if pid:
+        a.quiet = True
+        cmd_stop(a)
+        a.quiet = False
+    hosts = load(run_json(d), {}).get("hosts")
+    ts = time.strftime("%Y%m%d-%H%M%S")
+    arch = os.path.join(d, "archive", ts)
+    os.makedirs(arch, exist_ok=True)
+    keep = {"contexts.json", "rules.json"}
+    moved = []
+    for f in sorted(os.listdir(d)):
+        p = os.path.join(d, f)
+        if f == "archive" or (f in keep and not a.all):
+            continue
+        shutil.move(p, os.path.join(arch, f))
+        moved.append(f)
+    if a.purge:
+        shutil.rmtree(arch, ignore_errors=True)
+        print(f"purged {len(moved)} item(s) — target is empty")
+    else:
+        print(f"archived {len(moved)} item(s) -> {arch}")
+    a.quiet = False
+    hint(a, f"livehunt up {a.target}" + ("" if hosts else " --hosts <host>"))
+
+
 def cmd_export(a):
     d = tdir(a.target)
     c = db_counts(d)
@@ -496,6 +529,10 @@ def main():
     p.add_argument("--force", action="store_true")
     add("doctor", cmd_doctor)
     add("export", cmd_export)
+    p = add("reset", cmd_reset)
+    p.add_argument("--yes", action="store_true")
+    p.add_argument("--all", action="store_true", help="also archive contexts.json / rules.json")
+    p.add_argument("--purge", action="store_true", help="delete instead of archiving")
     p = add("up", cmd_up)
     p.add_argument("--hosts")
     p.add_argument("--cdp")

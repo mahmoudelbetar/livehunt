@@ -81,6 +81,15 @@ livehunt query shop writes       # objects with a write path (check the owner ch
 livehunt query shop collisions   # the same object seen under two accounts  <- IDOR
 ```
 
+## Starting over
+
+Pause and continue keeps everything: `livehunt stop shop` then `livehunt up shop`.
+To wipe the analysis and keep the old data as an archive:
+
+```bash
+livehunt reset shop --yes
+```
+
 ## The one rule
 
 **One test at a time, and write down the result.**
