@@ -77,6 +77,12 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 - [`docs/AGENT.md`](docs/AGENT.md) — wiring it into an AI agent (AGENTS.md / hunt.md rules)
 - [`docs/FAQ.md`](docs/FAQ.md) — legal, privacy, disk, multiple targets
 
+## Test it
+
+```bash
+python3 tests/selftest.py    # 17 checks, no browser and no target needed
+```
+
 ## Status
 
 v0.1 — used daily on real engagements. Roadmap: response-shape diffing across principals,
