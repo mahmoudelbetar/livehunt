@@ -22,7 +22,7 @@ Built for the gap between "I clicked around for an hour" and "I know what to tes
 ## Install
 
 ```bash
-git clone https://github.com/your-org/livehunt.git
+git clone https://github.com/mahmoudelbetar/livehunt.git
 cd livehunt
 ./install.sh                 # pipx if available, else pip --user
 # or: pipx install .

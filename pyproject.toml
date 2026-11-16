@@ -24,8 +24,8 @@ livehunt = "livehunt.cli:main"
 livekit = "livehunt.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/your-org/livehunt"
-Issues = "https://github.com/your-org/livehunt/issues"
+Homepage = "https://github.com/mahmoudelbetar/livehunt"
+Issues = "https://github.com/mahmoudelbetar/livehunt/issues"
 
 [tool.setuptools]
 packages = ["livehunt"]
