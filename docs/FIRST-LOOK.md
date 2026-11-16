@@ -1,5 +1,15 @@
 # First look — 5 minutes, no experience needed
 
+## See it before you install anything
+
+```bash
+livehunt demo
+livehunt query demo collisions
+```
+
+20 fake requests, two accounts, every output real. Then read [`MANUAL.md`](MANUAL.md) for the
+full explanation.
+
 ## What it is
 
 A recorder for your own browser. You surf a target you are allowed to test; it keeps every

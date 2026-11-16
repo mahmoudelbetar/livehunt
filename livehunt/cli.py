@@ -518,6 +518,79 @@ def cmd_agent(a):
     print(f"next → {data['next']}")
 
 
+DEMO_FLOWS = [
+    # method, path, status, label, principal, req_body, resp_body, ctype
+    ("GET", "/api/products?search=gin", 200, "", "anon", "", '{"items":[]}', "application/json"),
+    ("GET", "/api/search?q=%3Cscript%3E", 200, "", "anon", "", '{"hits":[]}', "application/json"),
+    ("POST", "/rest/user/login", 200, "", "anon", '{"email":"a@shop.demo","password":"x"}',
+     '{"authentication":{"token":"...","bid":6}}', "application/json"),
+    ("GET", "/api/expenses/1001", 200, "A", "A", "", '{"id":"1001","amount":42}', "application/json"),
+    ("GET", "/api/expenses/1001", 200, "B", "B", "", '{"id":"1001","amount":42}', "application/json"),
+    ("GET", "/api/expenses/1001/approvals", 200, "A", "A", "", '{"approvals":[]}', "application/json"),
+    ("GET", "/api/expenses/1001/approvals", 200, "B", "B", "", '{"approvals":[]}', "application/json"),
+    ("PUT", "/api/expenses/1001", 200, "A", "A", '{"amount":9999}', '{"ok":true}', "application/json"),
+    ("DELETE", "/api/expenses/1001/receipt", 200, "A", "A", "", '{"ok":true}', "application/json"),
+    ("GET", "/api/invoices/77", 200, "A", "A", "", '{"id":"77","total":120}', "application/json"),
+    ("GET", "/api/invoices/77", 200, "B", "B", "", '{"id":"77","total":120}', "application/json"),
+    ("POST", "/api/orders", 200, "A", "A", '{"total":100,"coupon":"SAVE10"}', '{"order":"1"}', "application/json"),
+    ("POST", "/api/orders", 200, "A", "A", '{"total":100,"coupon":"SAVE10"}', '{"order":"1"}', "application/json"),
+    ("POST", "/api/users", 200, "A", "A", '{"email":"x@shop.demo","role":"admin"}', '{"ok":true}', "application/json"),
+    ("GET", "/api/admin/users", 200, "A", "A", "", '{"users":[]}', "application/json"),
+    ("POST", "/api/profile/avatar", 200, "A", "A", "binary", '{"ok":true}', "multipart/form-data; boundary=x"),
+    ("GET", "/api/files?url=http://169.254.169.254/", 200, "A", "A", "", '{"content":"..."}', "application/json"),
+    ("GET", "/api/health/config", 200, "", "anon", "", '{"debug":true}', "application/json"),
+    ("POST", "/rest/user/reset-password", 200, "", "anon",
+     '{"email":"a@shop.demo","answer":"x","new":"y","repeat":"y"}',
+     '{"user":{"id":1,"totpSecret":"SEED","password":"hash"}}', "application/json"),
+    ("GET", "/api/orders/1", 200, "A", "A", "", '{"id":"1","total":100}', "application/json"),
+]
+
+
+def cmd_demo(a):
+    """Seed a synthetic target so anyone can see every output without a browser."""
+    target = a.name or "demo"
+    d = tdir(target)
+    if os.path.isdir(d) and not a.force:
+        sys.exit(f"{d} already exists — use --force to rebuild, or pick another name")
+    if a.force and os.path.isdir(d):
+        shutil.rmtree(d)
+    os.makedirs(d, exist_ok=True)
+    import sqlite3
+    from . import capture as _cap
+    con = sqlite3.connect(os.path.join(d, "live.db"))
+    con.executescript(_cap.SCHEMA)
+    cols = {r[1] for r in con.execute("pragma table_info(flows)")}
+    for c in ("context", "label", "sub", "principal"):
+        if c not in cols:
+            con.execute(f"alter table flows add column {c} text")
+    ts = time.time()
+    for i, (m, p, st, lab, pr, body, resp, ct) in enumerate(DEMO_FLOWS):
+        host = "shop.demo"
+        con.execute(
+            "insert into flows(ts,session,target,context,label,sub,principal,method,url,host,path,"
+            "path_template,status,mime,req_headers,req_body,resp_headers,resp_body,req_size,resp_size,"
+            "truncated,sha,class,score,tags) values(?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)",
+            (ts + i, "demo", "", "ctx-" + lab if lab else "", lab, "sub" + lab if lab else "", pr, m,
+             f"https://{host}{p}", host, p, _cap.path_template(p), st, ct,
+             json.dumps({"content-type": ct}), body, "{}", resp, len(body), len(resp), 0,
+             "demo%d" % i, None, None, None))
+    con.commit()
+    con.close()
+    save_atomic(os.path.join(d, "contexts.json"),
+                {"_help": "synthetic demo", "ctx-A": "A", "ctx-B": "B"})
+    save_atomic(run_json(d), {"pid": None, "hosts": "shop.demo", "cdp": CDP,
+                              "created": time.strftime("%Y-%m-%dT%H:%M:%S")})
+    subprocess.call([sys.executable, CLASSIFY, "--out", d])
+    print()
+    print("This is a synthetic target — no browser, no traffic, no real app.")
+    print("Read the delta above, then try:")
+    print(f"  livehunt agent {target}")
+    print(f"  livehunt query {target} collisions")
+    print(f"  livehunt query {target} objects")
+    print(f"  livehunt test {target} <H> dead --note \"demo\"")
+    hint(a, f"livehunt agent {target}")
+
+
 def cmd_export(a):
     d = tdir(a.target)
     c = db_counts(d)
@@ -606,6 +679,10 @@ def main():
     p.add_argument("--force", action="store_true")
     add("doctor", cmd_doctor)
     add("export", cmd_export)
+    p = sub.add_parser("demo")
+    p.add_argument("name", nargs="?", default="demo")
+    p.add_argument("--force", action="store_true")
+    p.set_defaults(fn=cmd_demo)
     p = add("agent", cmd_agent)
     p.add_argument("--json", action="store_true")
     p = add("reset", cmd_reset)

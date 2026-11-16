@@ -37,6 +37,14 @@ Requirements: Python 3.9+, Google Chrome, `requests`, `websocket-client` (instal
 
 ## 60-second start
 
+No target yet? See what the tool does first:
+
+```bash
+livehunt demo        # 20 synthetic flows, 11 hypotheses, real outputs
+livehunt query demo collisions
+```
+
+
 ```bash
 livehunt chrome --print      # exact command to start Chrome with the DevTools port
 livehunt init shop --hosts app.example.com
@@ -53,6 +61,7 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 
 | Command | Purpose |
 |---|---|
+| `livehunt demo` | seed a synthetic target — see every output with no browser |
 | `livehunt chrome` | print/launch the Chrome command with `--remote-debugging-port=9222` |
 | `livehunt init <t> --hosts h` | create the target folder + configs + stash/STATE stubs |
 | `livehunt up <t>` | doctor → start/resume → status → brief |
@@ -83,6 +92,7 @@ a time with you. The skill follows [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md).
 
 ## Docs
 
+- [`docs/MANUAL.md`](docs/MANUAL.md) — **start here**: the idea, the demo, three worked examples
 - [`docs/FIRST-LOOK.md`](docs/FIRST-LOOK.md) — 5-minute guide for a first-time hunter
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — install → first hypothesis, step by step
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — the daily loop
