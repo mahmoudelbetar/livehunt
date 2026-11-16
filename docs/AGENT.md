@@ -8,7 +8,8 @@ session: **re-reading captures** and **re-testing hypotheses**.
 
 | Moment | Agent action | Why |
 |---|---|---|
-| user says *"start/continue `<target>`"* | `livehunt up <target>` then read `<target>/stash.md` + `STATE.md` | one command prepares capture and prints the brief |
+| user says *"start/continue `<target>`"* | `livehunt up <target>` then `livehunt agent <target>` | one command prepares capture, one block gives the state |
+| every turn after that | `livehunt agent <target> --json` | replaces reading DB/docs entirely |
 | before any question about captured traffic | `livehunt brief <target>` or one `livehunt query <target> <view>` | answers come from aggregates, never from bodies |
 | after the user surfed a flow | `livehunt drain <target>` | classifies only `id > cursor` |
 | choosing what to test | `livehunt brief <target>` → top `TODO` row | already ranked, already carries its next test |
@@ -81,6 +82,12 @@ N+2. **Cheapest source first.** stash → one doc section → one `livehunt quer
 Before any request, restate one line: *which principal, which object, which endpoint*.
 Two of three unknown = not a test yet.
 ```
+
+## The one-call contract
+
+`livehunt agent <target> --json` returns `target`, `capture`, `flows`, `principals`,
+`hypotheses.{open,dead,blocked,confirmed,top[]}`, `coverage`, `tests_recent`, `next`.
+That is all an agent needs to plan a turn. See [`AI-GUIDE.md`](AI-GUIDE.md) for the prompts.
 
 ## Why this makes an agent better, not just faster
 

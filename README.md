@@ -60,6 +60,7 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 | `livehunt query <t> <view>` | `objects` `writes` `collisions` `money` `ids` `principals` `once` `object <kind> <id>` |
 | `livehunt test <t> <H> <result>` | record a test; refuses the same action twice |
 | `livehunt brief <t>` | what to do next, in 15 lines |
+| `livehunt agent <t> [--json]` | one compact block an AI can ingest in a single call |
 | `livehunt doctor <t>` | health checks |
 | `livehunt export <t>` | portable state bundle (no bodies) |
 | `livehunt reset <t> --yes` | archive the capture state and start the target fresh (`--purge` deletes, `--all` also resets config) |
@@ -80,6 +81,7 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — install → first hypothesis, step by step
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — the daily loop
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — every failure we have hit, and the fix
+- [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md) — how to work with an AI assistant, prompt by prompt
 - [`docs/AGENT.md`](docs/AGENT.md) — wiring it into an AI agent (AGENTS.md / hunt.md rules)
 - [`docs/FAQ.md`](docs/FAQ.md) — legal, privacy, disk, multiple targets
 

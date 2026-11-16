@@ -68,10 +68,21 @@ def pid_alive(pid):
             return False
 
 
+def owns(pid, d):
+    """A pid is only ours if its command line carries this exact out dir."""
+    try:
+        with open(f"/proc/{pid}/cmdline", "rb") as f:
+            return d.encode() in f.read()
+    except Exception:
+        return False
+
+
 def running(d):
     st = load(run_json(d), {})
     pid = st.get("pid")
-    return st, (pid if pid and pid_alive(pid) else None)
+    if not pid:
+        return st, None
+    return st, (pid if pid_alive(pid) and owns(pid, d) else None)
 
 
 def db_counts(d):
@@ -166,7 +177,7 @@ def cmd_start(a):
     log = open(os.path.join(d, "capture.log"), "a")
     p = subprocess.Popen(cmd, stdout=log, stderr=log, stdin=subprocess.DEVNULL,
                          start_new_session=True)
-    save_atomic(run_json(d), {"pid": p.pid, "hosts": hosts, "cdp": cdp,
+    save_atomic(run_json(d), {"pid": p.pid, "hosts": hosts, "cdp": cdp, "out": d,
                               "started": time.strftime("%Y-%m-%dT%H:%M:%S"),
                               "max_body": a.max_body or 262144})
     print(f"started pid {p.pid} · hosts={hosts} · out={d}")
@@ -445,6 +456,68 @@ def cmd_reset(a):
     hint(a, f"livehunt up {a.target}" + ("" if hosts else " --hosts <host>"))
 
 
+def cmd_agent(a):
+    """One compact block (or JSON) that an AI can ingest in a single call."""
+    d = tdir(a.target)
+    st, pid = running(d)
+    c = db_counts(d)
+    data = {"target": a.target, "version": __version__,
+            "capture": {"running": bool(pid), "pid": pid, "hosts": st.get("hosts"),
+                        "since": st.get("started")},
+            "flows": c or {}, "principals": {}, "hypotheses": {"open": 0, "dead": 0, "blocked": 0,
+                                                               "confirmed": 0, "top": []},
+            "coverage": {}, "tests_recent": [], "next": None}
+    db = os.path.join(d, "live.db")
+    if os.path.exists(db):
+        import sqlite3
+        con = sqlite3.connect(db)
+        con.row_factory = sqlite3.Row
+        con.execute("""create table if not exists tests(
+            id integer primary key autoincrement, hyp_id integer, ts text,
+            action text, result text, evidence integer, note text)""")
+        try:
+            data["principals"] = {r["principal"]: r["n"] for r in con.execute(
+                "select principal, count(*) n from flows group by principal order by n desc limit 6")}
+            for r in con.execute("select status, count(*) n from hypotheses group by status"):
+                k = {"TODO": "open", "FALSE-POSITIVE": "dead", "BLOCKED": "blocked",
+                     "CONFIRMED": "confirmed"}.get(r["status"])
+                if k:
+                    data["hypotheses"][k] = r["n"]
+            data["hypotheses"]["top"] = [dict(r) for r in con.execute(
+                "select id,class,method,path_template,count,score,next_test from hypotheses "
+                "where status='TODO' order by score desc, count desc limit 5")]
+            data["coverage"] = {
+                "endpoints": con.execute("select count(distinct path_template) from flows").fetchone()[0],
+                "seen_once": con.execute("select count(*) from (select 1 from flows group by path_template having count(*)=1)").fetchone()[0],
+                "objects": con.execute("select count(*) from objects").fetchone()[0]}
+            data["tests_recent"] = [dict(r) for r in con.execute(
+                "select hyp_id,ts,result,note from tests order by id desc limit 3")]
+        except Exception as e:
+            data["error"] = str(e)
+        finally:
+            con.close()
+    top = data["hypotheses"]["top"]
+    data["next"] = (f"livehunt test {a.target} {top[0]['id']} <confirmed|dead|blocked>"
+                    if top else f"livehunt drain {a.target} or surf one more flow")
+    if a.json:
+        print(json.dumps(data, indent=2))
+        return
+    cap = "running" if data["capture"]["running"] else "stopped"
+    f = data["flows"] or {}
+    print(f"livehunt {__version__} · {a.target}")
+    print(f"capture {cap} · hosts {data['capture']['hosts'] or '-'} · "
+          f"flows {f.get('flows', 0)} (cursor {f.get('cursor', 0)}, {f.get('flows', 0) - f.get('cursor', 0)} unclassified)")
+    print("principals " + (" · ".join(f"{k}={v}" for k, v in data["principals"].items()) or "-"))
+    h = data["hypotheses"]
+    print(f"hypotheses {h['open']} open · {h['dead']} dead · {h['blocked']} blocked · {h['confirmed']} confirmed")
+    for r in top:
+        print(f"  H{r['id']} {r['class']} {r['method']} {r['path_template']} s{r['score']} x{r['count']}")
+        print(f"     {r['next_test']}")
+    cov = data["coverage"] or {}
+    print(f"coverage {cov.get('endpoints', 0)} endpoints · {cov.get('objects', 0)} objects")
+    print(f"next → {data['next']}")
+
+
 def cmd_export(a):
     d = tdir(a.target)
     c = db_counts(d)
@@ -533,6 +606,8 @@ def main():
     p.add_argument("--force", action="store_true")
     add("doctor", cmd_doctor)
     add("export", cmd_export)
+    p = add("agent", cmd_agent)
+    p.add_argument("--json", action="store_true")
     p = add("reset", cmd_reset)
     p.add_argument("--yes", action="store_true")
     p.add_argument("--all", action="store_true", help="also archive contexts.json / rules.json")

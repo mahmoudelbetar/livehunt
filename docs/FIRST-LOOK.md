@@ -110,6 +110,12 @@ flow id as evidence.
 | remembering what you already tested | proving impact (that is your job) |
 | keeping A and B sessions apart | scanning or fuzzing (use Burp) |
 
+## Using an AI with it
+
+Optional, but common: paste `docs/AI-GUIDE.md` into your assistant, then start each turn with
+`livehunt agent <target>`. The assistant gets a 15-line state block instead of raw traffic,
+proposes one test, and you approve it.
+
 ## If something breaks
 
 ```bash
