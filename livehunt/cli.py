@@ -434,6 +434,10 @@ def cmd_reset(a):
         moved.append(f)
     if a.purge:
         shutil.rmtree(arch, ignore_errors=True)
+        try:
+            os.rmdir(os.path.join(d, "archive"))
+        except OSError:
+            pass
         print(f"purged {len(moved)} item(s) — target is empty")
     else:
         print(f"archived {len(moved)} item(s) -> {arch}")
