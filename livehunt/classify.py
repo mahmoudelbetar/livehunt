@@ -27,6 +27,7 @@ NOISE_PATH = re.compile(r"^/cdn-cgi/|^/__cf|/sentry|\.well-known|favicon|/rum\b"
 
 NEXT_TEST = {
     "IDOR": "replay the same request as account B; then change the id — compare body, not status",
+    "IDOR-write": "replay as account B with a real body; compare the object's state after, not the status",
     "BAC": "replay with the lowest-privilege token and with no token; diff status + body",
     "BusinessLogic": "set the money field to 0 / -1 / 999999 and compare the server-computed total",
     "MassAssignment": "add role/isAdmin/verified/ownerId to the body, then re-read the object",
@@ -416,11 +417,17 @@ def main():
     conn.commit()
 
     ranked = sorted(top.items(), key=lambda kv: (-kv[1]["score"], -kv[1]["n"]))
+    tagged = {k: v for k, v in counts.items() if k not in ("None", "Noise")}
+    untagged = counts.get("None", 0) + counts.get("Noise", 0)
     lines = [f"# live delta — {time.strftime('%Y-%m-%d %H:%M:%S')}",
-             f"new flows: {len(rows)} (ids {rows[0]['id']}..{rows[-1]['id']})", "",
-             "| class | count |", "|---|---|"]
-    for k, v in sorted(counts.items(), key=lambda x: -x[1]):
-        lines.append(f"| {k} | {v} |")
+             f"new flows: {len(rows)} (ids {rows[0]['id']}..{rows[-1]['id']})", ""]
+    if tagged:
+        lines += ["| class | count |", "|---|---|"]
+        for k, v in sorted(tagged.items(), key=lambda x: -x[1]):
+            lines.append(f"| {k} | {v} |")
+    lines.append(f"untagged {untagged}" if untagged else "untagged 0")
+    if not tagged:
+        lines += ["", "no class fired — these flows are surface, not candidates."]
     if ranked:
         lines += ["", "## top candidates (one row per endpoint)", "| class | score | n | request | why | first flow |",
                   "|---|---|---|---|---|---|"]

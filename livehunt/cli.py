@@ -411,11 +411,6 @@ def cmd_query(a):
     rc = subprocess.call([sys.executable, QUERY, "--out", d, a.view] + list(a.args))
     if rc:
         sys.exit(rc)
-    h = top_todo(d)
-    if h:
-        hint(a, f"livehunt test {a.target} {h['id']} <result>  ({h['method']} {h['path_template']})")
-    else:
-        hint(a, f"livehunt query {a.target} writes")
 
 
 def cmd_note(a):
@@ -479,6 +474,8 @@ def cmd_doctor(a):
     def chk(name, cond, detail=""):
         nonlocal ok
         ok = ok and bool(cond)
+        if cond and getattr(a, "quiet", False):
+            return                      # inside `up`: only failures are worth a line
         print(f"{'OK  ' if cond else 'FAIL'} {name}{(' — ' + detail) if detail else ''}")
 
     chk("python", sys.version_info >= (3, 9), sys.version.split()[0])
@@ -545,11 +542,8 @@ def cmd_up(a):
             print("not started — add --hosts on first run")
     a.quiet = True
     print()
-    cmd_status(a)
-    print()
     cmd_brief(a)
     a.quiet = False
-    next_after_surf(a, d)
 
 
 def cmd_reset(a):

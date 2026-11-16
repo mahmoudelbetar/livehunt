@@ -91,7 +91,7 @@ that refusal is the duplicate guard. `--force` only when the target itself chang
 | Line | Means | Use |
 |---|---|---|
 | `new flows: 30 (ids 83..112)` | only the delta was classified | read the delta, never the whole DB |
-| `\| class \| count \|` | how many flows landed in each class | tells you what kind of surface you just exercised |
+| `\| class \| count \|` | how many flows landed in each tagged class, then one `untagged N` line | tells you what kind of surface you just exercised; `untagged` is surface, not a failure |
 | `## top candidates` — `score`, `n`, `request`, `why`, `first flow` | one row per endpoint, ranked by score | your shortlist; `why` says which rule fired |
 | `## new hypotheses` — `class`, `request`, `next test` | endpoints worth testing, with the exact first move | pick one, write the 6-line review |
 
