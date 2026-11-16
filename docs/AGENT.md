@@ -1,7 +1,8 @@
 # Agent integration (AGENTS.md / hunt.md)
 
 This file is the contract between an AI hunting agent and `livehunt`. Paste the snippets at the
-bottom into your agent config. The rules exist to stop the two failure modes that waste a
+bottom into your agent config, or install the packaged skill (`skills/livehunt/SKILL.md`, copied
+to `~/.agents/skills/` by `install.sh`) and just say **livehunt**. The rules exist to stop the two failure modes that waste a
 session: **re-reading captures** and **re-testing hypotheses**.
 
 ## Tool contract — what the agent calls, and when

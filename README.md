@@ -75,6 +75,12 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
   classifier — only counts, paths and flow ids.
 - Only capture traffic you are authorized to test. The tool does not grant permission.
 
+## Use it as an agent skill
+
+`install.sh` also copies `skills/livehunt/` into `~/.agents/skills/`. Then say **"livehunt"**
+in your AI session: it starts the toolkit, reads the state block, and drives one hypothesis at
+a time with you. The skill follows [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md).
+
 ## Docs
 
 - [`docs/FIRST-LOOK.md`](docs/FIRST-LOOK.md) — 5-minute guide for a first-time hunter

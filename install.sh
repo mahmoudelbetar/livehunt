@@ -40,6 +40,11 @@ else
   "$BIN/livehunt" version
 fi
 
+# agent skill (optional, harmless if the dir does not exist)
+SKILLS="${AGENTS_SKILLS:-$HOME/.agents/skills}"
+mkdir -p "$SKILLS"
+cp -r "$DIR/skills/livehunt" "$SKILLS/" 2>/dev/null && echo "skill installed: $SKILLS/livehunt"
+
 echo
 echo "next:"
 echo "  1) livehunt chrome --print"
