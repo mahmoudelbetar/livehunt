@@ -17,6 +17,7 @@ Roles and the handoff: [`WHO-DOES-WHAT.md`](WHO-DOES-WHAT.md).
 | after the user surfed a flow | `livehunt drain <target>` | classifies only `id > cursor` |
 | choosing what to test | `livehunt brief <target>` → top `TODO` row | already ranked, already carries its next test |
 | after a test | `livehunt test <target> <H> <result> [--flow N] [--note …]` | the ledger refuses duplicates |
+| a fact with no hypothesis row (score < 3, out-of-band, confirmed finding) | `livehunt note <target> "…" [--flow N]` | shows as `notes N` in `brief`; never write a new md file for it |
 | session end | `livehunt drain`, `livehunt stop`, update `stash.md` → `STATE.md` → `<target>.md` | resumable next time |
 | something looks broken | `livehunt doctor <target>`, then `docs/TROUBLESHOOTING.md` | never guess at infrastructure |
 

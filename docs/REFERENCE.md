@@ -41,6 +41,7 @@ belongs to B, through an endpoint that believed the client?*
 | `drain <t>` | `--rebuild` | `delta.md`: class counts, top 8 candidates, up to 10 new hypotheses; **also rewrites `context.md` + `chains.md`** | every 2–3 minutes of surfing, and after any new flow | read the delta, then one `query` |
 | `query <t> <view>` | views below | one table | after a drain, or when a question is object-shaped | act on the row |
 | `test <t> <H> <result>` | `--action "…"` `--flow N` `--note "…"` `--force` | `recorded H4 -> dead (PUT /api/x/{id})` | **immediately after every send** | next `brief` |
+| `note <t> <text>` | `--flow N` | `note recorded: …`, then `notes N · last: …` in `brief` | a fact with no hypothesis row — score < 3, confirmed finding, out-of-band observation | stops you re-deriving it in markdown |
 | `doctor <t>` | — | `OK`/`FAIL` per precondition | before blaming the target | `TROUBLESHOOTING.md` |
 | `export <t>` | — | `exported …/bundle.json (N B, no bodies)` | attaching state to a report/issue | share the file |
 | `demo [name]` | `--force` | a seeded 20-flow shop with two accounts | you want to see all outputs with no browser | `agent demo`, `query demo collisions` |

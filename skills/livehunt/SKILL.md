@@ -60,6 +60,13 @@ Stop a hypothesis after **two clean attempts**. `dead` = never retry without a n
 
 ## 3. Hard rules
 
+- **Direct instruction = do exactly that, then stop.** A few lines of answer. No md files, no
+  extra analysis, no unrequested plan, no "here is also what I would do next". Documentation is
+  written when asked, or once at session end — never as the response to a small request.
+- **livehunt is the live path; proxy2model is a separate tool.** Use livehunt unless the user
+  names proxy2model. Never mix their artefacts in one answer, and never make a live question
+  depend on a proxy2model rebuild.
+
 - **Never open** `live.db`, `flows.jsonl`, `graph.db`, `context.json` or any `.jsonl` at session
   start. `agent` and the docs answer first.
 - **Never test twice.** The ledger refuses a repeated (hypothesis, action); that refusal is the
@@ -80,6 +87,7 @@ Stop a hypothesis after **two clean attempts**. `dead` = never retry without a n
 | `livehunt drain <t>` | after the user surfed |
 | `livehunt query <t> objects\|writes\|collisions\|money\|ids\|principals\|once\|object <k> <id>` | targeted questions |
 | `livehunt test <t> <H> <result> [--flow N] [--note …]` | after every test |
+| `livehunt note <t> "…" [--flow N]` | a fact with no hypothesis row (score < 3, out-of-band) |
 | `livehunt brief <t>` | when the user asks "where are we" |
 | `livehunt doctor <t>` | before blaming the target |
 | `livehunt reset <t> --yes` | only on explicit request — archives the state |

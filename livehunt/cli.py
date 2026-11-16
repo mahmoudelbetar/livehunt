@@ -302,6 +302,10 @@ def cmd_brief(a):
         blk = con.execute("select count(*) from hypotheses where status='BLOCKED'").fetchone()[0]
         print(f"ledger    {conf} confirmed · {dead} dead (never retest) · {blk} blocked (needs a principal/object) · "
               f"{con.execute('select count(*) from tests').fetchone()[0]} test(s) recorded")
+        notes = con.execute("select count(*) from tests where result='note'").fetchone()[0]
+        if notes:
+            last = con.execute("select note from tests where result='note' order by id desc limit 1").fetchone()[0]
+            print(f"notes     {notes} · last: {last[:70]}")
         once = con.execute("select count(*) from (select 1 from flows group by path_template having count(*)=1)").fetchone()[0]
         print(f"coverage  {con.execute('select count(distinct path_template) from flows').fetchone()[0]} endpoints seen"
               f" · {once} seen only once")
@@ -331,6 +335,26 @@ def cmd_query(a):
         hint(a, f"livehunt test {a.target} {h['id']} <result>  ({h['method']} {h['path_template']})")
     else:
         hint(a, f"livehunt query {a.target} writes")
+
+
+def cmd_note(a):
+    """Record a fact the classifier cannot hold (e.g. a confirmed finding with score < 3)."""
+    d = tdir(a.target)
+    db = os.path.join(d, "live.db")
+    if not os.path.exists(db):
+        sys.exit("no live.db — start capture first")
+    import sqlite3
+    con = sqlite3.connect(db)
+    con.execute("""create table if not exists tests(
+        id integer primary key autoincrement, hyp_id integer, ts text,
+        action text, result text, evidence integer, note text)""")
+    text = " ".join(a.text)
+    con.execute("insert into tests(hyp_id,ts,action,result,evidence,note) values(null,?,?,?,?,?)",
+                (time.strftime('%Y-%m-%dT%H:%M:%S'), "note", "note", a.flow, text))
+    con.commit()
+    con.close()
+    print(f"note recorded: {text[:140]}")
+    hint(a, f"livehunt brief {a.target}")
 
 
 def cmd_test(a):
@@ -703,6 +727,9 @@ def main():
     p.add_argument("--flow", type=int)
     p.add_argument("--note")
     p.add_argument("--force", action="store_true")
+    p = add("note", cmd_note)
+    p.add_argument("text", nargs="+")
+    p.add_argument("--flow", type=int)
     add("doctor", cmd_doctor)
     add("export", cmd_export)
     p = sub.add_parser("demo")

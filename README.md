@@ -68,6 +68,7 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 | `livehunt drain <t>` | classify new flows, rebuild `context.md` / `chains.md` |
 | `livehunt query <t> <view>` | `objects` `writes` `collisions` `money` `ids` `principals` `once` `object <kind> <id>` |
 | `livehunt test <t> <H> <result>` | record a test; refuses the same action twice |
+| `livehunt note <t> "…"` | record a fact that has no hypothesis row (shows in `brief` as `notes`) |
 | `livehunt brief <t>` | what to do next, in 15 lines |
 | `livehunt agent <t> [--json]` | one compact block an AI can ingest in a single call |
 | `livehunt doctor <t>` | health checks |
