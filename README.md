@@ -6,6 +6,10 @@ principals — while you surf.
 
 Built for the gap between "I clicked around for an hour" and "I know what to test next".
 
+**No AI required.** Classification is deterministic (rules, no model, no API key, no telemetry).
+An AI assistant is optional — it can read the brief and delta and propose the next test
+(see [`docs/AGENT.md`](docs/AGENT.md)); the tool works alone.
+
 ## What it does
 
 1. **Captures** full requests and responses from your own Chrome via the DevTools protocol
@@ -71,6 +75,7 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 
 ## Docs
 
+- [`docs/FIRST-LOOK.md`](docs/FIRST-LOOK.md) — 5-minute guide for a first-time hunter
 - [`docs/QUICKSTART.md`](docs/QUICKSTART.md) — install → first hypothesis, step by step
 - [`docs/WORKFLOW.md`](docs/WORKFLOW.md) — the daily loop
 - [`docs/TROUBLESHOOTING.md`](docs/TROUBLESHOOTING.md) — every failure we have hit, and the fix

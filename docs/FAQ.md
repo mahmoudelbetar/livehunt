@@ -40,6 +40,12 @@ object key for joins; the kind is just a label.
 Yes: one capture process per target, each with its own `--out` and `--hosts`. Never point two
 captures at the same folder (`database is locked`).
 
+**Does it need an AI model / an API key?**
+No. It is plain Python + Chrome DevTools. Classification is deterministic rules, there is no
+model, no network call and no telemetry. An AI assistant is optional: point it at
+`docs/AGENT.md` and it can read `brief`/`delta` and suggest the next test — but a human with a
+terminal gets the same output.
+
 **Does it replace Burp?**
 No. It replaces the *flat history problem*: which object, which principal, what did I already
 test. Keep Burp for Repeater, scanning and precise payload work.
