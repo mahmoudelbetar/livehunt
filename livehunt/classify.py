@@ -315,6 +315,18 @@ def build_chains(conn, out):
         f.write("\n".join(lines))
 
 
+def capture_state(out):
+    """'running since <time> · tab idle' — explains an empty delta without opening Chrome."""
+    try:
+        st = json.load(open(os.path.join(out, "run.json")))
+    except Exception:
+        return ""
+    pid = st.get("pid")
+    alive = bool(pid) and os.path.exists(f"/proc/{pid}")
+    when = st.get("started") or "?"
+    return f"{'running' if alive else 'stopped'} since {when}"
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", required=True)
@@ -342,7 +354,14 @@ def main():
     upto = int(cur["v"]) if cur else 0
     rows = list(conn.execute("select * from flows where id > ? order by id", (upto,)))
     if not rows:
-        print(f"no new flows (cursor {upto})")
+        total = conn.execute("select count(*) from flows").fetchone()[0]
+        print(f"no new flows (cursor {upto}{', ' + str(total) + ' recorded' if total else ''})")
+        if not total:
+            state = capture_state(a.out)
+            if state:
+                print(f"capture   {state}")
+            print("next      the browser has sent nothing yet — click into the app "
+                  "(capture only records what happens after it starts)")
         build_context(conn, a.out)
         build_chains(conn, a.out)
         return
