@@ -22,7 +22,7 @@ Env: BOUNTY_ROOT (default ~/bounty), LIVE_CDP (default http://127.0.0.1:9222)
 """
 import argparse, json, os, shutil, signal, subprocess, sys, time
 
-__version__ = "0.1.0"
+from . import __version__  # single source of truth (livehunt/__init__.py)
 HERE = os.path.dirname(os.path.abspath(__file__))
 CAPTURE = os.path.join(HERE, "capture.py")
 CLASSIFY = os.path.join(HERE, "classify.py")
