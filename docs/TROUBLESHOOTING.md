@@ -15,7 +15,8 @@ hosts filter, context labels, DB readability, cursor sanity, disk.
 |---|---|
 | `chrome cdp` | Chrome is not running with `--remote-debugging-port=9222`, or another process owns 9222 |
 | `capture process` | the background process died — read `live/capture.log` |
-| `hosts filter` | `run.json` has no hosts; start with `--hosts` |
+| `hosts filter` | `run.json` has no usable hosts; start with `--hosts` |
+| `hosts filter narrow` | the filter is `*` — every host in the browser is captured; name the real host |
 | `db readable` | `live.db` is corrupt or half-copied — see "database" below |
 | `cursor sane` | DB was replaced but the cursor was not — see "database" below |
 
@@ -33,7 +34,9 @@ hosts filter, context labels, DB readability, cursor sanity, disk.
 ### `flows 0` after surfing
 
 1. **Wrong host filter.** The capture only keeps hosts in `--hosts`. Check the exact host in
-   the address bar (`app.example.com` vs `www.app.example.com`).
+   the address bar (`app.example.com` vs `www.app.example.com`). A port is allowed
+   (`juice.local:3000`); a scheme or path is stripped, and `capture.log` shows the normalised
+   list (`hosts=['app.example.com']`).
 2. **Wrong window.** Traffic from another Chrome instance is invisible. Use the window the
    printed command opened.
 3. **Page idle.** A static page produces no API calls. Click into the app.

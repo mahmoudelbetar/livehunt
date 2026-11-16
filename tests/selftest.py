@@ -65,8 +65,42 @@ def seed():
     return exp
 
 
+def host_tests():
+    """--hosts parsing: what a human types must match what Chrome reports."""
+    from livehunt.hosts import HostFilter, canonical_hosts, normalize_hosts
+
+    ok("hosts: URL is stripped",
+       normalize_hosts("https://App.Example.com:8443/api?x=1") == ["app.example.com:8443"],
+       normalize_hosts("https://App.Example.com:8443/api?x=1"))
+    ok("hosts: bare host keeps any port",
+       HostFilter("juice.local").matches("juice.local", 3000))
+    ok("hosts: explicit port is honoured",
+       HostFilter("juice.local:3000").matches("juice.local", 3000)
+       and not HostFilter("juice.local:3000").matches("juice.local", 80))
+    ok("hosts: default port by scheme",
+       HostFilter("app.example.com:443").matches_url("https://app.example.com/x"))
+    ok("hosts: wildcard covers apex + subdomain",
+       HostFilter("*.example.com").matches_url("https://a.example.com/")
+       and HostFilter("*.example.com").matches_url("https://example.com/"))
+    ok("hosts: wildcard does not leak to suffixed hosts",
+       not HostFilter("*.example.com").matches_url("https://notexample.com/"))
+    ok("hosts: empty filter matches nothing",
+       not HostFilter("") and not HostFilter("  ,  ").matches("a.com", 80))
+    ok("hosts: canonical form is stable",
+       canonical_hosts(" https://APP.test:8443/x , *.Example.com ") == "app.test:8443,*.example.com",
+       canonical_hosts(" https://APP.test:8443/x , *.Example.com "))
+
+
 def main():
     print("root:", ROOT)
+    host_tests()
+    sh("init", TARGET, "--hosts", "app.test")
+    ok("init stores canonical hosts",
+       json.load(open(os.path.join(D, "run.json")))["hosts"] == "app.test")
+    sh("init", TARGET, "--hosts", "https://App.Test:8443/x?y")
+    ok("init normalises a pasted URL",
+       json.load(open(os.path.join(D, "run.json")))["hosts"] == "app.test:8443",
+       json.load(open(os.path.join(D, "run.json")))["hosts"])
     sh("init", TARGET, "--hosts", "app.test")
     ok("init creates dirs", os.path.isdir(D) and os.path.isfile(os.path.join(ROOT, TARGET, "stash.md")))
 

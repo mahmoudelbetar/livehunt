@@ -23,6 +23,7 @@ Env: BOUNTY_ROOT (default ~/bounty), LIVE_CDP (default http://127.0.0.1:9222)
 import argparse, json, os, shutil, signal, subprocess, sys, time
 
 from . import __version__  # single source of truth (livehunt/__init__.py)
+from .hosts import canonical_hosts, parse_hosts
 HERE = os.path.dirname(os.path.abspath(__file__))
 CAPTURE = os.path.join(HERE, "capture.py")
 CLASSIFY = os.path.join(HERE, "classify.py")
@@ -144,7 +145,10 @@ def cmd_init(a):
     if not os.path.exists(os.path.join(d, "rules.json")):
         shutil.copy(os.path.join(TEMPLATES, "rules.json"), os.path.join(d, "rules.json"))
     if a.hosts:
-        save_atomic(run_json(d), {"pid": None, "hosts": a.hosts, "cdp": a.cdp or CDP,
+        hosts = canonical_hosts(a.hosts)
+        if not hosts:
+            sys.exit(f"no usable host in --hosts {a.hosts!r} (e.g. --hosts app.example.com)")
+        save_atomic(run_json(d), {"pid": None, "hosts": hosts, "cdp": a.cdp or CDP,
                                   "created": time.strftime("%Y-%m-%dT%H:%M:%S")})
     tdir_target = os.path.join(ROOT, a.target)
     for name, body in (
@@ -168,6 +172,9 @@ def cmd_start(a):
     hosts = a.hosts or st.get("hosts")
     if not hosts:
         sys.exit("--hosts is required on first start (e.g. --hosts app.example.com)")
+    hosts = canonical_hosts(hosts)
+    if not hosts:
+        sys.exit(f"no usable host in --hosts {a.hosts!r} (e.g. --hosts app.example.com)")
     cdp = a.cdp or st.get("cdp") or CDP
     cmd = [sys.executable, "-u", CAPTURE, "--hosts", hosts, "--out", d, "--cdp", cdp]
     if a.max_body:
@@ -381,7 +388,9 @@ def cmd_doctor(a):
         chk("chrome cdp", False, f"{cdp} — {str(e)[:40]} (run: livehunt chrome)")
     chk("capture process", (pid is not None) or not st.get("pid"),
         f"pid {pid}" if pid else ("not started" if not st.get("pid") else "dead — run: livehunt resume " + a.target))
-    chk("hosts filter", bool(st.get("hosts")), st.get("hosts") or "missing")
+    chk("hosts filter", bool(parse_hosts(st.get("hosts") or "")), st.get("hosts") or "missing")
+    if any(p == "*" for p, _ in parse_hosts(st.get("hosts") or "")):
+        chk("hosts filter narrow", False, "wildcard * captures every host — narrow it")
     labels = load(os.path.join(d, "contexts.json"), {})
     unlabelled = [k for k in labels if not k.startswith("_")]
     chk("contexts labelled", True, f"{len(unlabelled)} label(s)")

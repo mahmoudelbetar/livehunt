@@ -54,6 +54,19 @@ shop/
 
 `--hosts` is the in-scope host list, comma separated. Nothing else is captured.
 
+Each entry is normalised before matching, so all of these work:
+
+| You type | Kept traffic |
+|---|---|
+| `app.example.com` | that host, any port |
+| `app.example.com:8443` | that host, port 8443 only |
+| `https://app.example.com/login` | same as `app.example.com` (scheme and path dropped) |
+| `*.example.com` | `example.com` and every subdomain |
+| `juice.local:3000, *.example.com` | both rules |
+
+The canonical form is saved in `run.json`, and `capture.log` prints
+`hosts normalised: '<what you typed>' -> <canonical>` whenever they differ.
+
 ## 4. Start and check (30 s)
 
 ```bash

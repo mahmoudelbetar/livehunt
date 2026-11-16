@@ -15,11 +15,19 @@ Config (optional, hot-read at start):
 Usage:
   cdp_capture.py --hosts app.navan.com --out /root/bounty/navan/live
   cdp_capture.py --hosts app.navan.com --out ... --duration 20   # smoke test
+
+--hosts accepts hostnames, host:port, full URLs and *.wildcards (see hosts.py).
 """
 import argparse, base64, hashlib, json, os, queue, re, signal, sqlite3, sys, threading, time
+from urllib.parse import urlsplit
 
 import requests
 import websocket  # websocket-client
+
+try:                                   # imported as a package
+    from .hosts import DEFAULT_PORTS, HostFilter, normalize_hosts
+except ImportError:                    # run as a script
+    from hosts import DEFAULT_PORTS, HostFilter, normalize_hosts
 
 SKIP_MIME = ("image/", "font/", "video/", "audio/", "text/css")
 SKIP_EXT = re.compile(r"\.(png|jpe?g|gif|svg|webp|avif|ico|woff2?|ttf|eot|css|mp4|webm|map)(\?|$)", re.I)
@@ -212,10 +220,12 @@ class CDP:
             rid = p["requestId"]
             r = p["request"]
             url = r.get("url", "")
-            host = url.split("/")[2].split(":")[0] if "://" in url else ""
+            u = urlsplit(url)
+            host = (u.hostname or "").lower()
+            port = u.port or DEFAULT_PORTS.get(u.scheme.lower())
             self.reqs[(s, rid)] = {
                 "ts": time.time(), "session": s, "target": msg.get("targetId") or "",
-                "method": r.get("method"), "url": url, "host": host,
+                "method": r.get("method"), "url": url, "host": host, "port": port,
                 "path": ("/" + url.split("/", 3)[3]) if url.count("/") >= 3 else "/",
                 "req_headers": dict(r.get("headers") or {}),
                 "req_body": r.get("postData") or "",
@@ -247,7 +257,7 @@ class CDP:
             self.reqs.pop((s, p.get("requestId")), None)
 
     def finalize(self, session, rid, rec):
-        if rec["host"] not in self.hosts:
+        if not self.hosts.matches(rec["host"], rec.get("port")):
             return
         if self.exclude.search(rec["path"]):
             return
@@ -357,9 +367,11 @@ def main():
     ap.add_argument("--duration", type=int, default=0, help="exit after N seconds (smoke test)")
     a = ap.parse_args()
 
-    hosts = {h.strip().lower() for h in a.hosts.split(",") if h.strip()}
+    hosts = HostFilter(a.hosts)
     if not hosts:
-        sys.exit("refusing to run with an empty --hosts filter")
+        sys.exit(f"refusing to run: --hosts {a.hosts!r} contains no usable host")
+    if str(hosts) != a.hosts.strip():
+        print(f"hosts normalised: {a.hosts!r} -> {hosts}")
     os.makedirs(a.out, exist_ok=True)
 
     lab_path = os.path.join(a.out, "contexts.json")
@@ -384,7 +396,7 @@ def main():
     signal.signal(signal.SIGTERM, bye)
     signal.signal(signal.SIGINT, bye)
 
-    print(f"attached: {ver['Browser']} · hosts={sorted(hosts)} · out={a.out}")
+    print(f"attached: {ver['Browser']} · hosts={hosts.canonical} · out={a.out}")
     tries = 0
     while tries < 5 and not c.stop:
         try:

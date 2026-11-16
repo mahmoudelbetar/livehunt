@@ -78,7 +78,8 @@ Data lives in `~/bounty/<target>/live/` (`BOUNTY_ROOT` overrides).
 
 - **Read-only by design.** The tool subscribes to Chrome's Network domain; it cannot and does
   not send requests to the target. Active testing stays your decision.
-- **Host filter is mandatory** (`--hosts`). Anything else in the browser is ignored.
+- **Host filter is mandatory** (`--hosts`). Anything else in the browser is ignored. Entries
+  may be a hostname, `host:port`, a full URL, or `*.domain` — they are normalised on start.
 - `Authorization`, `Cookie`, `Set-Cookie` and `X-Api-Key` are masked in the stored headers.
 - Bodies are stored on disk (they are your evidence) and are **never printed** by the
   classifier — only counts, paths and flow ids.
