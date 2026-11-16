@@ -46,9 +46,9 @@ livehunt query demo collisions
 
 
 ```bash
-livehunt chrome --print      # exact command to start Chrome with the DevTools port
+livehunt chrome --launch     # opens Chrome with the DevTools port (done for you by `up`)
 livehunt init shop --hosts app.example.com
-livehunt up shop             # doctor -> start -> status -> brief
+livehunt up shop             # doctor -> Chrome -> start -> status -> brief
 # surf the app: auth -> core object -> money -> roles -> settings
 livehunt drain shop          # ranked delta + context.md + chains.md
 livehunt query shop collisions

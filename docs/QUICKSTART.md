@@ -12,27 +12,36 @@ livehunt version
 
 If `livehunt: command not found`, add `~/.local/bin` to your `PATH`.
 
-## 2. Start Chrome with the DevTools port (1 min)
+## 2. Chrome — the tool opens it (0 min)
+
+Nothing to configure. `livehunt up <target>` checks the DevTools port and, if it is
+closed, launches Chrome itself with a dedicated profile (`~/.livehunt-chrome`, or a
+Windows-side folder when Chrome is `chrome.exe` under WSL).
+
+If you want it done before any target exists:
 
 ```bash
-livehunt chrome --print
+livehunt chrome --launch
 ```
 
-Copy the printed command into a terminal. It starts Chrome with a **separate profile**
-(`~/.livehunt-chrome`) and `--remote-debugging-port=9222`.
+That window is the one to browse in from now on. Log into the target **there**; the profile
+is reused on every run, so the login survives.
 
-Why a separate profile: Chrome 136+ refuses the debugging port on your default profile, and
-you do not want your daily browsing mixed into a target capture.
+Rules the tool applies for you:
 
-Keep that Chrome window open. Log into the target **in that window**.
+- separate profile — Chrome 136+ ignores the debugging port on your default profile
+- Windows Chrome when running under WSL (never a Linux browser, which would have different logins)
+- the first in-scope host is opened for you (`http://juice.local:3000` for that filter)
+- an already-open browser is reused, never launched twice
 
-Verify:
+Verify any time:
 
 ```bash
 curl http://127.0.0.1:9222/json/version
 ```
 
-You should see a JSON blob with `"Browser": "Chrome/..."`.
+Override the binary or profile only if needed: `LIVE_CHROME=/path/to/chrome`,
+`LIVE_CHROME_PROFILE=~/my-profile`.
 
 ## 3. Create the target (30 s)
 

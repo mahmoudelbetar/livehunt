@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "livehunt"
-version = "0.5.2"
+version = "0.6.0"
 description = "Passive live-capture toolkit for web bug hunters: watch your own browser, build an object graph, get ranked hypotheses."
 readme = "README.md"
 license = { text = "MIT" }

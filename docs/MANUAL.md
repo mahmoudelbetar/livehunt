@@ -188,7 +188,7 @@ The division of labour is in [`WHO-DOES-WHAT.md`](WHO-DOES-WHAT.md); the prompts
 ## 7. A real session, minute by minute
 
 ```
-00:00  livehunt chrome --print        → start Chrome with the debug port
+00:00  (Chrome is opened by `up`; `livehunt chrome --launch` does it alone)
 00:02  livehunt init shop --hosts app.example.com
 00:03  livehunt up shop               → doctor, capture, brief
 00:04  label your context in live/contexts.json, restart

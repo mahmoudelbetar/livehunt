@@ -24,9 +24,10 @@ hosts filter, context labels, DB readability, cursor sanity, disk.
 
 ### `chrome cdp` FAIL, connection refused
 
-- Chrome was started normally (no debugging flag). Use `livehunt chrome --print`.
-- **Chrome 136+**: the debugging port is ignored on the default profile. The printed command
-  includes `--user-data-dir`, keep it.
+- Chrome was started normally (no debugging flag). `livehunt up` launches it for you; to do
+  it by hand use `livehunt chrome --launch`.
+- **Chrome 136+**: the debugging port is ignored on the default profile. The launched command
+  always includes `--user-data-dir`; keep it.
 - Port 9222 already used: `ss -ltnp | grep 9222` (Linux) / `lsof -i :9222` (macOS).
   Kill the old instance or start Chrome on `--remote-debugging-port=9333` and run
   `LIVE_CDP=http://127.0.0.1:9333 livehunt up <target>`.

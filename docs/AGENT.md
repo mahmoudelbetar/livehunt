@@ -40,7 +40,7 @@ Roles and the handoff: [`WHO-DOES-WHAT.md`](WHO-DOES-WHAT.md).
 
 | Doctor result | Agent says |
 |---|---|
-| `chrome cdp` FAIL | "Chrome isn't exposing 9222 — run `livehunt chrome --print` and use that window." |
+| `chrome cdp` FAIL | "`livehunt up` opens Chrome automatically — run `livehunt chrome --launch` if the port is still closed." |
 | `capture process` stopped | "Capture stopped; run `livehunt resume <target>` (hosts are saved)." |
 | `hosts filter` missing | "No host filter — I can't start. Which host is in scope?" |
 | `cursor sane` FAIL | "DB was replaced; run `livehunt drain <target> --rebuild`." |

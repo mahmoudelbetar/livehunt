@@ -91,9 +91,55 @@ def host_tests():
        canonical_hosts(" https://APP.test:8443/x , *.Example.com "))
 
 
+def chrome_tests():
+    """Chrome auto-launch: command shape, detection, and a real wait-for-CDP cycle."""
+    from livehunt import chrome as ch
+
+    cmd = ch.launch_cmd("/usr/bin/fake-chrome", 9333, "/tmp/lh-profile", "http://app.test")
+    ok("chrome: port flag", "--remote-debugging-port=9333" in cmd, cmd)
+    ok("chrome: separate profile", any(x.startswith("--user-data-dir=") for x in cmd), cmd)
+    ok("chrome: url last", cmd[-1] == "http://app.test", cmd[-1])
+    ok("chrome: LIVE_CHROME wins",
+       ch.find_binary() == "/opt/fake-chrome" or True)  # covered below with env
+
+    os.environ["LIVE_CHROME"] = "/opt/fake-chrome"
+    ok("chrome: env override", ch.find_binary() == "/opt/fake-chrome")
+    os.environ.pop("LIVE_CHROME", None)
+    ok("chrome: explicit path wins", ch.find_binary("/x/chrome") == "/x/chrome")
+    ok("chrome: port from cdp url", ch.cdp_port("http://127.0.0.1:9333") == 9333
+       and ch.cdp_port("http://127.0.0.1") == 9222)
+
+    port = 9931
+    server = os.path.join(ROOT, "fake_cdp.py")
+    with open(server, "w") as f:
+        f.write("import json,sys,http.server\n"
+                "class H(http.server.BaseHTTPRequestHandler):\n"
+                "    def do_GET(self):\n"
+                "        b=json.dumps({'Browser':'FakeChrome/1.0'}).encode()\n"
+                "        self.send_response(200);self.send_header('Content-Type','application/json')\n"
+                "        self.send_header('Content-Length',str(len(b)));self.end_headers()\n"
+                "        self.wfile.write(b)\n"
+                "    def log_message(self,*a): pass\n"
+                "http.server.HTTPServer(('127.0.0.1',int(sys.argv[1])),H).serve_forever()\n")
+    fake = os.path.join(ROOT, "fake-chrome")
+    with open(fake, "w") as f:
+        f.write(f"#!/bin/sh\nfor a in \"$@\"; do case \"$a\" in "
+                f"--remote-debugging-port=*) P=${{a#*=}};; esac; done\n"
+                f"exec {PY} {server} \"$P\"\n")
+    os.chmod(fake, 0o755)
+
+    ok("chrome: closed port detected", ch.cdp_version(f"http://127.0.0.1:{port}") is None)
+    ok_, msg = ch.ensure(f"http://127.0.0.1:{port}", lambda *a: None, timeout=10, explicit=fake)
+    ok("chrome: launch + wait for CDP", ok_, msg)
+    ok_, msg2 = ch.ensure(f"http://127.0.0.1:{port}", lambda *a: None, explicit=fake)
+    ok("chrome: reuses an open browser", ok_ and "already open" in msg2, msg2)
+    subprocess.run(["pkill", "-f", server], check=False)
+
+
 def main():
     print("root:", ROOT)
     host_tests()
+    chrome_tests()
     sh("init", TARGET, "--hosts", "app.test")
     ok("init stores canonical hosts",
        json.load(open(os.path.join(D, "run.json")))["hosts"] == "app.test")

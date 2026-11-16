@@ -95,6 +95,23 @@ def canonical_hosts(raw):
     return ",".join(normalize_hosts(raw))
 
 
+def sample_url(raw):
+    """A URL worth opening first, from the most specific filter entry.
+
+    juice.local:3000 -> http://juice.local:3000
+    app.navan.com    -> https://app.navan.com
+    """
+    for pat, port in parse_hosts(raw):
+        if pat == "*" or pat.startswith("."):
+            continue
+        host = f"[{pat}]" if ":" in pat else pat
+        scheme = "http" if port == 80 else "https"
+        if port and port not in (80, 443):
+            return f"{scheme}://{host}:{port}"
+        return f"{scheme}://{host}"
+    return None
+
+
 class HostFilter:
     """Matcher used by the capture loop and by any offline replay."""
 

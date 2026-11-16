@@ -23,7 +23,8 @@ Env: BOUNTY_ROOT (default ~/bounty), LIVE_CDP (default http://127.0.0.1:9222)
 import argparse, json, os, shutil, signal, subprocess, sys, time
 
 from . import __version__  # single source of truth (livehunt/__init__.py)
-from .hosts import canonical_hosts, parse_hosts
+from . import chrome as chrome_tool
+from .hosts import canonical_hosts, parse_hosts, sample_url
 HERE = os.path.dirname(os.path.abspath(__file__))
 CAPTURE = os.path.join(HERE, "capture.py")
 CLASSIFY = os.path.join(HERE, "classify.py")
@@ -176,6 +177,10 @@ def cmd_start(a):
     if not hosts:
         sys.exit(f"no usable host in --hosts {a.hosts!r} (e.g. --hosts app.example.com)")
     cdp = a.cdp or st.get("cdp") or CDP
+    say = (lambda *x: None) if getattr(a, "quiet", False) else print
+    ok, msg = chrome_tool.ensure(cdp, say, url=sample_url(hosts))
+    if not ok:
+        sys.exit(msg)
     cmd = [sys.executable, "-u", CAPTURE, "--hosts", hosts, "--out", d, "--cdp", cdp]
     if a.max_body:
         cmd += ["--max-body", str(a.max_body)]
@@ -385,7 +390,8 @@ def cmd_doctor(a):
         v = requests.get(cdp + "/json/version", timeout=3).json()
         chk("chrome cdp", True, v.get("Browser", ""))
     except Exception as e:
-        chk("chrome cdp", False, f"{cdp} — {str(e)[:40]} (run: livehunt chrome)")
+        chk("chrome cdp", False,
+            f"{cdp} closed — livehunt up launches Chrome for you ({str(e)[:30]})")
     chk("capture process", (pid is not None) or not st.get("pid"),
         f"pid {pid}" if pid else ("not started" if not st.get("pid") else "dead — run: livehunt resume " + a.target))
     chk("hosts filter", bool(parse_hosts(st.get("hosts") or "")), st.get("hosts") or "missing")
@@ -409,8 +415,13 @@ def cmd_doctor(a):
 
 def cmd_up(a):
     a.quiet = True
-    cmd_doctor(a)
     d = tdir(a.target)
+    st, pid = running(d)
+    cdp = st.get("cdp") or CDP
+    ok, msg = chrome_tool.ensure(cdp, print, url=sample_url(st.get("hosts")))
+    if not msg.startswith("chrome     already open"):
+        print(msg)
+    cmd_doctor(a)
     st, pid = running(d)
     if not pid:
         if st.get("hosts"):
@@ -629,25 +640,31 @@ def cmd_export(a):
     hint(a, "attach bundle.json to your report or issue — it contains no bodies")
 
 
-CHROME = {
-    "linux": 'google-chrome --remote-debugging-port=9222 --user-data-dir="$HOME/.livehunt-chrome"',
-    "darwin": '"/Applications/Google Chrome.app/Contents/MacOS/Google Chrome" '
-              '--remote-debugging-port=9222 --user-data-dir="$HOME/.livehunt-chrome"',
-    "win32": '"C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe" '
-             '--remote-debugging-port=9222 --user-data-dir="%USERPROFILE%\\.livehunt-chrome"',
-}
-
-
 def cmd_chrome(a):
-    key = "win32" if sys.platform.startswith("win") else ("darwin" if sys.platform == "darwin" else "linux")
-    cmd = CHROME[key]
-    print("Start Chrome with the DevTools port open (use a separate profile, not your main one):\n")
-    print("  " + cmd)
-    print("\nThen open your target in that window and run: livehunt up <target>")
-    print("Chrome 136+ refuses the port on the default profile, so the --user-data-dir is required.")
-    if a.launch:
-        subprocess.Popen(cmd, shell=True, start_new_session=True)
-        print("\nlaunched.")
+    cdp = os.environ.get("LIVE_CDP", CDP)
+    binary = chrome_tool.find_binary(getattr(a, "binary", None))
+    port = chrome_tool.cdp_port(cdp)
+    v = chrome_tool.cdp_version(cdp)
+    if v:
+        print(f"chrome already open ({v.get('Browser', 'Chrome')}) on {cdp} — nothing to do.")
+        return
+    if not binary:
+        print("Chrome not found. Install Chrome, or point at it explicitly:\n")
+        print(f"  LIVE_CHROME='/path/to/chrome' livehunt chrome --launch")
+        return
+    cmd = chrome_tool.launch_cmd(binary, port)
+    if getattr(a, "launch", False):
+        ok, msg = chrome_tool.ensure(cdp, print, explicit=binary)
+        print(msg)
+        if not ok:
+            sys.exit(1)
+        print("\nChrome is open and will be reused on every run. Log in to the target there.")
+        return
+    print("Chrome is not running with the DevTools port. The tool can do it for you:\n")
+    print("  livehunt chrome --launch\n")
+    print("or run it yourself:\n")
+    print("  " + " ".join(f'"{c}"' if " " in c else c for c in cmd))
+    print(f"\nProfile: {chrome_tool.profile_dir(binary)} (separate from your daily Chrome, logins persist).")
 
 
 def main():
@@ -706,7 +723,8 @@ def main():
     p.add_argument("--force", action="store_true")
     p = sub.add_parser("chrome")
     p.add_argument("--print", action="store_true", help="print the command (default)")
-    p.add_argument("--launch", action="store_true")
+    p.add_argument("--launch", action="store_true", help="open Chrome with the DevTools port")
+    p.add_argument("--binary", help="explicit Chrome path (else auto-detected)")
     p.set_defaults(fn=cmd_chrome)
     sub.add_parser("version").set_defaults(fn=lambda a: print(f"livehunt {__version__}"))
 

@@ -43,7 +43,7 @@ livehunt version
 
 ```bash
 # 1. start Chrome with the debugging port (separate profile, safe)
-livehunt chrome --print        # copy-paste the printed command
+livehunt chrome --launch       # or skip this: `up` opens Chrome for you
 
 # 2. create a folder for the target
 livehunt init shop --hosts app.example.com

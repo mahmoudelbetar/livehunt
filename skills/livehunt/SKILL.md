@@ -89,7 +89,7 @@ Stop a hypothesis after **two clean attempts**. `dead` = never retry without a n
 
 | Symptom | Action |
 |---|---|
-| `chrome cdp` FAIL | tell the user to run `livehunt chrome --print` and use that window |
+| `chrome cdp` FAIL | `livehunt up` launches Chrome itself; if that failed, `livehunt chrome --launch` |
 | capture stopped | `livehunt resume <t>` (hosts are saved) |
 | `flows 0` after surfing | wrong host filter, wrong window, or idle page — check `agent` hosts |
 | `db readable` FAIL / cursor skew | `livehunt drain <t> --rebuild` |
