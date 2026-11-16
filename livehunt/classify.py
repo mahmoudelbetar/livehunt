@@ -438,5 +438,27 @@ def main():
     print(text)
 
 
+def _guard():
+    """Never die with a traceback."""
+    import sqlite3
+    try:
+        main()
+    except SystemExit:
+        raise
+    except sqlite3.DatabaseError as e:
+        sys.exit(f"livehunt: the capture db is unreadable ({e}) — start fresh: "
+                 f"livehunt reset <target> --yes")
+    except BrokenPipeError:
+        try:
+            sys.stdout.close()
+        except Exception:
+            pass
+        sys.exit(0)
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as e:  # noqa: BLE001
+        sys.exit(f"livehunt: {e or e.__class__.__name__}")
+
+
 if __name__ == "__main__":
-    main()
+    _guard()

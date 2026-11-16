@@ -417,5 +417,20 @@ def main():
     print(f"flows written: {w.n}")
 
 
+def _guard():
+    """Never die with a traceback — the log is the only witness."""
+    import sqlite3
+    try:
+        main()
+    except SystemExit:
+        raise
+    except sqlite3.DatabaseError as e:
+        sys.exit(f"livehunt capture: the db is unreadable ({e}) — move or reset it, then restart")
+    except KeyboardInterrupt:
+        sys.exit(130)
+    except Exception as e:  # noqa: BLE001
+        sys.exit(f"livehunt capture: {e or e.__class__.__name__}")
+
+
 if __name__ == "__main__":
-    main()
+    _guard()

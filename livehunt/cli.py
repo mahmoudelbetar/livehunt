@@ -34,8 +34,51 @@ ROOT = os.environ.get("BOUNTY_ROOT") or os.path.expanduser("~/bounty")
 CDP = os.environ.get("LIVE_CDP", "http://127.0.0.1:9222")
 
 
+def check_target(target):
+    """Refuse anything that is not a plain folder name — never a path, never traversal."""
+    t = (target or "").strip()
+    if not t:
+        sys.exit("target name is required — e.g. livehunt up shop")
+    if t in (".", "..") or "/" in t or "\\" in t or ":" in t or os.path.isabs(t):
+        sys.exit(f"invalid target name {target!r}: use a plain folder name "
+                 f"(letters, digits, - _ .), not a path")
+    if len(t) > 64:
+        sys.exit(f"invalid target name {target!r}: keep it under 64 characters")
+    return t
+
+
 def tdir(target):
-    return os.path.join(ROOT, target, "live")
+    return os.path.join(ROOT, check_target(target), "live")
+
+
+def require_dir(target):
+    d = tdir(target)
+    if not os.path.isdir(d):
+        sys.exit(f"no such target {target!r} (looked in {d})\n"
+                 f"  create it: livehunt init {target} --hosts <host>")
+    return d
+
+
+def require_db(target):
+    d = require_dir(target)
+    db = os.path.join(d, "live.db")
+    if not os.path.exists(db):
+        sys.exit(f"{target} has no capture yet (no live.db in {d})\n"
+                 f"  start it: livehunt up {target}")
+    return d, db
+
+
+def body_size(s):
+    """--max-body: a non-negative byte count, sane upper bound."""
+    try:
+        n = int(s)
+    except (TypeError, ValueError):
+        raise argparse.ArgumentTypeError(f"not a number: {s!r}")
+    if n < 0:
+        raise argparse.ArgumentTypeError("must be >= 0")
+    if n > 50_000_000:
+        raise argparse.ArgumentTypeError("too large (max 50,000,000)")
+    return n
 
 
 def run_json(d):
@@ -107,6 +150,16 @@ def db_counts(d):
         c.close()
 
 
+def warn_hosts(hosts, quiet=False):
+    """A host without a dot is legal (intranet) but is usually a typo — say so once."""
+    if quiet:
+        return
+    for h in (hosts or "").split(","):
+        name = h.strip().split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
+        if name and "." not in name and name not in ("localhost", "*") and not name.startswith("["):
+            print(f"warn      host {name!r} has no dot — typo? it will still be used")
+
+
 def hint(a, msg):
     if getattr(a, "quiet", False):
         return
@@ -149,6 +202,7 @@ def cmd_init(a):
         hosts = canonical_hosts(a.hosts)
         if not hosts:
             sys.exit(f"no usable host in --hosts {a.hosts!r} (e.g. --hosts app.example.com)")
+        warn_hosts(hosts, getattr(a, "quiet", False))
         save_atomic(run_json(d), {"pid": None, "hosts": hosts, "cdp": a.cdp or CDP,
                                   "created": time.strftime("%Y-%m-%dT%H:%M:%S")})
     tdir_target = os.path.join(ROOT, a.target)
@@ -176,6 +230,7 @@ def cmd_start(a):
     hosts = canonical_hosts(hosts)
     if not hosts:
         sys.exit(f"no usable host in --hosts {a.hosts!r} (e.g. --hosts app.example.com)")
+    warn_hosts(hosts, getattr(a, "quiet", False))
     cdp = a.cdp or st.get("cdp") or CDP
     say = (lambda *x: None) if getattr(a, "quiet", False) else print
     ok, msg = chrome_tool.ensure(cdp, say, url=sample_url(hosts))
@@ -197,7 +252,7 @@ def cmd_start(a):
 
 
 def cmd_stop(a):
-    d = tdir(a.target)
+    d = require_dir(a.target)
     st, pid = running(d)
     if not pid:
         print("not running")
@@ -220,7 +275,7 @@ def cmd_stop(a):
 
 
 def cmd_resume(a):
-    d = tdir(a.target)
+    d = require_dir(a.target)
     st, pid = running(d)
     if pid:
         print(f"already running (pid {pid})")
@@ -239,6 +294,11 @@ def cmd_resume(a):
 
 def cmd_status(a):
     d = tdir(a.target)
+    if not os.path.isdir(d):
+        print(f"target      {a.target}")
+        print(f"dir         {d}   (does not exist)")
+        hint(a, f"livehunt init {a.target} --hosts <host>")
+        return
     st, pid = running(d)
     c = db_counts(d)
     size = 0
@@ -253,6 +313,10 @@ def cmd_status(a):
           + (f" · since {st.get('started')}" if pid else ""))
     print(f"hosts       {st.get('hosts') or '-'}")
     if c:
+        if c.get("error"):
+            print(f"db          unreadable — {c['error']}")
+            print("            start fresh: livehunt reset " + a.target + " --yes")
+            return
         print(f"flows       {c.get('flows')} (max id {c.get('max_id')}) · cursor {c.get('cursor')}"
               f" · {c.get('flows', 0) - c.get('cursor', 0)} unclassified")
         print(f"objects     {c.get('objects')} · hypotheses {c.get('hypotheses')}")
@@ -268,11 +332,16 @@ def cmd_status(a):
 
 def cmd_brief(a):
     d = tdir(a.target)
+    if not os.path.isdir(d):
+        print(f"# brief — {a.target}")
+        print(f"dir       {d}   (does not exist)")
+        hint(a, f"livehunt init {a.target} --hosts <host>")
+        return
     st, pid = running(d)
     c = db_counts(d)
     print(f"# brief — {a.target}")
     print(f"capture   {'running pid ' + str(pid) if pid else 'stopped'} · hosts {st.get('hosts') or '-'}")
-    if c:
+    if c and not c.get("error"):
         print(f"flows     {c.get('flows')} (max {c.get('max_id')}) · cursor {c.get('cursor')}"
               f" · {c.get('flows', 0) - c.get('cursor', 0)} unclassified")
     db = os.path.join(d, "live.db")
@@ -282,6 +351,11 @@ def cmd_brief(a):
     import sqlite3
     con = sqlite3.connect(db)
     con.row_factory = sqlite3.Row
+    if c.get("error"):
+        print(f"db        unreadable — {c['error']}")
+        print(f"          start fresh: livehunt reset {a.target} --yes")
+        con.close()
+        return
     con.execute("""create table if not exists tests(
         id integer primary key autoincrement, hyp_id integer, ts text,
         action text, result text, evidence integer, note text)""")
@@ -320,16 +394,23 @@ def cmd_brief(a):
 
 
 def cmd_drain(a):
-    d = tdir(a.target)
-    if not os.path.exists(os.path.join(d, "live.db")):
-        sys.exit("no live.db — start capture first")
-    subprocess.call([sys.executable, CLASSIFY, "--out", d] + (["--rebuild"] if a.rebuild else []))
+    d, _ = require_db(a.target)
+    rc = subprocess.call([sys.executable, CLASSIFY, "--out", d] + (["--rebuild"] if a.rebuild else []))
+    if rc:
+        sys.exit(rc)
     next_after_surf(a, d)
 
 
 def cmd_query(a):
-    d = tdir(a.target)
-    subprocess.call([sys.executable, QUERY, "--out", d, a.view] + a.args)
+    d, _ = require_db(a.target)
+    if a.view == "object" and len(a.args) != 2:
+        sys.exit("object needs two arguments: livehunt query <target> object <kind> <id>\n"
+                 "  example: livehunt query shop object invoice 1001")
+    if a.view != "object" and a.args:
+        sys.exit(f"{a.view} takes no arguments (got: {' '.join(a.args)})")
+    rc = subprocess.call([sys.executable, QUERY, "--out", d, a.view] + list(a.args))
+    if rc:
+        sys.exit(rc)
     h = top_todo(d)
     if h:
         hint(a, f"livehunt test {a.target} {h['id']} <result>  ({h['method']} {h['path_template']})")
@@ -339,12 +420,9 @@ def cmd_query(a):
 
 def cmd_note(a):
     """Record a fact the classifier cannot hold (e.g. a confirmed finding with score < 3)."""
-    d = tdir(a.target)
-    db = os.path.join(d, "live.db")
-    if not os.path.exists(db):
-        sys.exit("no live.db — start capture first")
+    d, _ = require_db(a.target)
     import sqlite3
-    con = sqlite3.connect(db)
+    con = sqlite3.connect(os.path.join(d, "live.db"))
     con.execute("""create table if not exists tests(
         id integer primary key autoincrement, hyp_id integer, ts text,
         action text, result text, evidence integer, note text)""")
@@ -358,12 +436,9 @@ def cmd_note(a):
 
 
 def cmd_test(a):
-    d = tdir(a.target)
-    db = os.path.join(d, "live.db")
-    if not os.path.exists(db):
-        sys.exit("no live.db")
+    d, _ = require_db(a.target)
     import sqlite3
-    con = sqlite3.connect(db)
+    con = sqlite3.connect(os.path.join(d, "live.db"))
     con.execute("""create table if not exists tests(
         id integer primary key autoincrement, hyp_id integer, ts text,
         action text, result text, evidence integer, note text)""")
@@ -371,6 +446,10 @@ def cmd_test(a):
     if not h:
         sys.exit(f"no hypothesis H{a.hyp_id}")
     action = a.action or f"{h[2]} {h[3]}"
+    if a.flow and not con.execute("select 1 from flows where id=?", (a.flow,)).fetchone():
+        con.close()
+        sys.exit(f"no flow {a.flow} in this capture — the evidence id must be a real flow id "
+                 f"(see: livehunt query {a.target} object <kind> <id>)")
     dup = con.execute("select id,ts,result from tests where hyp_id=? and action=?",
                       (a.hyp_id, action)).fetchone()
     if dup and not a.force:
@@ -392,6 +471,9 @@ def cmd_test(a):
 
 def cmd_doctor(a):
     d = tdir(a.target)
+    if not os.path.isdir(d):
+        print(f"note  no such target {a.target!r} (looked in {d}) — create it: "
+              f"livehunt init {a.target} --hosts <host>")
     ok = True
 
     def chk(name, cond, detail=""):
@@ -440,6 +522,13 @@ def cmd_doctor(a):
 def cmd_up(a):
     a.quiet = True
     d = tdir(a.target)
+    if not os.path.isdir(d):
+        if not getattr(a, "hosts", None):
+            sys.exit(f"no such target {a.target!r} (looked in {d})\n"
+                     f"  create it: livehunt init {a.target} --hosts <host>")
+        a.quiet = False
+        cmd_init(a)
+        a.quiet = True
     st, pid = running(d)
     cdp = st.get("cdp") or CDP
     ok, msg = chrome_tool.ensure(cdp, print, url=sample_url(st.get("hosts")))
@@ -636,7 +725,7 @@ def cmd_demo(a):
 
 
 def cmd_export(a):
-    d = tdir(a.target)
+    d = require_dir(a.target)
     c = db_counts(d)
     bundle = {
         "target": a.target, "exported": time.strftime("%Y-%m-%dT%H:%M:%S"),
@@ -666,6 +755,8 @@ def cmd_export(a):
 
 def cmd_chrome(a):
     cdp = os.environ.get("LIVE_CDP", CDP)
+    if not cdp.startswith(("http://", "https://")):
+        sys.exit(f"bad CDP endpoint {cdp!r} — expected http://127.0.0.1:9222")
     binary = chrome_tool.find_binary(getattr(a, "binary", None))
     port = chrome_tool.cdp_port(cdp)
     v = chrome_tool.cdp_version(cdp)
@@ -721,7 +812,7 @@ def main():
     p = add("start", cmd_start, "start capture for this target on the given hosts")
     p.add_argument("--hosts", help=HOSTS_HELP)
     p.add_argument("--cdp", help=CDP_HELP)
-    p.add_argument("--max-body", type=int, default=0, help=MAXBODY_HELP)
+    p.add_argument("--max-body", type=body_size, default=0, help=MAXBODY_HELP)
     p.add_argument("--keep-static", action="store_true", help=KEEPSTATIC_HELP)
     p.add_argument("--force", action="store_true", help=FORCE_START_HELP)
 
@@ -735,7 +826,8 @@ def main():
                    help="re-classify every flow and rebuild all hypotheses, objects and touches")
 
     p = add("query", cmd_query, "canned hunting questions, one table each")
-    p.add_argument("view",
+    p.add_argument("view", choices=["objects", "collisions", "writes", "ids", "money",
+                                    "principals", "once", "object"],
                    help="objects | collisions | writes | ids | money | principals | once | object")
     p.add_argument("args", nargs="*",
                    help="view arguments — only `object` needs them: <kind> <id>, e.g. invoice 1001")
@@ -776,7 +868,7 @@ def main():
     p = add("up", cmd_up, "session start: opens Chrome, doctor, start/resume, status, brief")
     p.add_argument("--hosts", help=HOSTS_HELP)
     p.add_argument("--cdp", help=CDP_HELP)
-    p.add_argument("--max-body", type=int, default=0, help=MAXBODY_HELP)
+    p.add_argument("--max-body", type=body_size, default=0, help=MAXBODY_HELP)
     p.add_argument("--keep-static", action="store_true", help=KEEPSTATIC_HELP)
     p.add_argument("--force", action="store_true", help=FORCE_START_HELP)
 
@@ -791,7 +883,47 @@ def main():
         fn=lambda a: print(f"livehunt {__version__}"))
 
     a = ap.parse_args()
-    a.fn(a)
+    try:
+        a.fn(a)
+    except KeyboardInterrupt:
+        print("\ninterrupted", file=sys.stderr)
+        sys.exit(130)
+    except BrokenPipeError:
+        try:
+            sys.stdout.close()
+        except Exception:
+            pass
+        sys.exit(0)
+    except SystemExit:
+        raise
+    except FileNotFoundError as e:
+        sys.exit(f"missing file: {getattr(e, 'filename', None) or e}\n"
+                 f"  run: livehunt doctor {getattr(a, 'target', '')}")
+    except PermissionError as e:
+        sys.exit(f"permission denied: {getattr(e, 'filename', None) or e}")
+    except OSError as e:
+        if "database is locked" in str(e).lower():
+            sys.exit(f"database is locked — two captures on one folder? "
+                     f"run: livehunt stop {getattr(a, 'target', '')} and keep one")
+        sys.exit(f"i/o error: {e}")
+    except Exception as e:  # noqa: BLE001 — last resort: never show a traceback
+        import sqlite3
+        msg = str(e) or e.__class__.__name__
+        if isinstance(e, sqlite3.Error):
+            low = msg.lower()
+            if "locked" in low:
+                sys.exit(f"database is locked — another capture is writing this folder\n"
+                         f"  run: livehunt stop {getattr(a, 'target', '')} and keep one")
+            if "no such table" in low or "no such column" in low:
+                sys.exit(f"the capture db is from an older livehunt ({msg})\n"
+                         f"  rebuild it: livehunt drain {getattr(a, 'target', '')} --rebuild")
+            sys.exit(f"database error: {msg}\n"
+                     f"  start fresh: livehunt reset {getattr(a, 'target', '')} --yes")
+        if os.environ.get("LIVEHUNT_DEBUG"):
+            raise
+        sys.exit(f"error: {msg}\n"
+                 f"  run: livehunt doctor {getattr(a, 'target', '')}   "
+                 f"(LIVEHUNT_DEBUG=1 for a traceback)")
 
 
 if __name__ == "__main__":

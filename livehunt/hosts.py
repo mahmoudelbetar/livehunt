@@ -48,6 +48,8 @@ def _split_entry(part):
     host = host.strip().strip(".")
     if not host:
         return None
+    if not re.match(r"^[a-z0-9._\-\[\]:*]+$", host):
+        return None                              # spaces, unicode, shell junk
 
     if host in ("*", "*.", "*.*"):
         return ("*", port)
