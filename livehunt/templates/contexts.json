@@ -1,0 +1,3 @@
+{
+  "_help": "browserContextId -> label (A/B/C). Labels land on every captured flow. Find the ids with: livehunt status <target> (or the 'contexts:' line in capture.log)."
+}

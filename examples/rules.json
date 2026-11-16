@@ -1,0 +1,5 @@
+{
+  "_help": "exclude: regex of paths to ignore. keep_static: capture images/css/fonts too (noisy).",
+  "exclude": "^/cdn-cgi/|^/__cf|/sentry|\\.well-known|favicon|/rum\\b",
+  "keep_static": false
+}
