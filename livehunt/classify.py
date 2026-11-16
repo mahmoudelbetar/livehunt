@@ -171,6 +171,9 @@ def classify(row):
     method, path, url = row["method"], row["path"], row["url"]
     if NOISE_PATH.search(path):
         return "Noise", 0, [], ""
+    # HTML documents are pages, not API surface — never a candidate, never a hypothesis
+    if str(row["mime"] or "").startswith("text/html") or path.startswith("/app/"):
+        return "UI", 0, [], ""
     qs = url.split("?", 1)[1] if "?" in url else ""
     qparams = {p.split("=")[0] for p in qs.split("&") if p} if qs else set()
     rh = parse_headers(row["req_headers"])
@@ -417,8 +420,8 @@ def main():
     conn.commit()
 
     ranked = sorted(top.items(), key=lambda kv: (-kv[1]["score"], -kv[1]["n"]))
-    tagged = {k: v for k, v in counts.items() if k not in ("None", "Noise")}
-    untagged = counts.get("None", 0) + counts.get("Noise", 0)
+    tagged = {k: v for k, v in counts.items() if k not in ("None", "Noise", "UI")}
+    untagged = sum(v for k, v in counts.items() if k in ("None", "Noise", "UI"))
     lines = [f"# live delta — {time.strftime('%Y-%m-%d %H:%M:%S')}",
              f"new flows: {len(rows)} (ids {rows[0]['id']}..{rows[-1]['id']})", ""]
     if tagged:
