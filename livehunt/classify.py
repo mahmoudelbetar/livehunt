@@ -14,15 +14,21 @@ NUM_RE = re.compile(r"^\d{1,12}$")
 IDKEY_RE = re.compile(r"([a-z0-9]+)[_-]?id$", re.I)
 
 LOGIC_KEYS = re.compile(r"price|amount|total|qty|quantity|discount|coupon|credit|balance|points|limit|fee|tip", re.I)
-MASS_KEYS = re.compile(r"^(role|roles|is_?admin|admin|verified|active|isactive|owner|ownerid|userid|tenantid|companyid|orgid)$", re.I)
+MASS_KEYS = re.compile(r"^(role|roles|is_?admin|admin|verified|active|isactive|owner|ownerid|owneruuid|userid|useruuid|tenantid|companyid|orgid|memberid|traveleruuid)$", re.I)
 SQL_PARAMS = re.compile(r"^(q|query|search|filter|sort|order|orderby|where|id)$", re.I)
 XSS_PARAMS = re.compile(r"^(q|name|title|comment|message|description|note|feedback|subject|bio|username)$", re.I)
 SSRF_PARAMS = re.compile(r"^(url|uri|link|callback|webhook|redirect|next|returnurl|return_url|imageurl|image_url|fetch|proxy|dest|target|src)$", re.I)
-UPLOAD_PATH = re.compile(r"upload|avatar|profile/image|attachment|import|file", re.I)
+UPLOAD_PATH = re.compile(r"upload|avatar|/attachment|/import|/files?(/|$)|profile/image", re.I)
 AUTH_PATH = re.compile(r"login|logout|token|session|password|reset|otp|2fa|mfa|register|signup|verify|captcha|security-question", re.I)
 INFO_PATH = re.compile(r"config|version|debug|actuator|swagger|openapi|graphql|/env|/metrics|heapdump", re.I)
 ADMIN_PATH = re.compile(r"(^|/)(admin|internal|manage|backoffice|staff)[a-z]*", re.I)
 RACE_KEYS = re.compile(r"qty|quantity|amount|coupon|redeem|claim|transfer|withdraw|vote|like", re.I)
+# identity in the query string: the weakest place a server can take an owner from
+IDENT_Q = re.compile(r"uuid|_id$|(^|_)id$|user|owner|member|employee|traveler|customer|account|delegate|profile", re.I)
+# opaque storage keys: the file is addressed, not the record that owns it
+FILE_Q = re.compile(r"filekey|file_key|blob|objectkey|s3key|storagekey|attachment|downloadurl|preview|thumbnail|doc(ument)?key", re.I)
+# account/identity surfaces: email change, delegation, invitations, SSO
+ACCOUNT_PATH = re.compile(r"personalemails?|/emails?|delegate|invite|invitation|sso|saml|oauth|membership|linked", re.I)
 NOISE_PATH = re.compile(r"^/cdn-cgi/|^/__cf|/sentry|\.well-known|favicon|/rum\b", re.I)
 
 NEXT_TEST = {
@@ -41,7 +47,7 @@ NEXT_TEST = {
     "InfoLeak": "request the same path with no auth; diff the body",
 }
 WEIGHT = {"IDOR": 3, "IDOR-write": 4, "BAC": 4, "BusinessLogic": 3, "MassAssignment": 3,
-          "SQLi": 2, "XSS": 2, "SSRF": 3, "FileUpload": 2, "CSRF": 1, "Auth": 2,
+          "SQLi": 2, "XSS": 2, "SSRF": 3, "FileUpload": 2, "CSRF": 1, "Auth": 3,
           "Race": 3, "InfoLeak": 1}
 
 SCHEMA = """
@@ -176,6 +182,8 @@ def classify(row):
         return "UI", 0, [], ""
     qs = url.split("?", 1)[1] if "?" in url else ""
     qparams = {p.split("=")[0] for p in qs.split("&") if p} if qs else set()
+    # a parameter with an empty value is surface, not a candidate (q=&size=20 is not SQLi)
+    qparams_valued = {p.split("=")[0] for p in qs.split("&") if p and p.split("=", 1)[-1] != ""}
     rh = parse_headers(row["req_headers"])
     ctype = rh.get("content-type", "")
     keys = body_keys(row["req_body"], ctype)
@@ -185,22 +193,33 @@ def classify(row):
     if has_id:
         tags.append("IDOR")
         why.append("object id in path")
+    ident_q = [p for p in qparams if IDENT_Q.search(p)]
+    file_q = [p for p in qparams if FILE_Q.search(p)]
+    if file_q:
+        tags.append("IDOR")
+        why.append(f"file key in query: {file_q[0]}")
+    elif ident_q:
+        tags.append("IDOR")
+        why.append(f"identity in query: {ident_q[0]}")
+    if (file_q or ident_q) and method in ("PUT", "PATCH", "DELETE"):
+        tags.append("IDOR-write")
+        why.append("identity/file key + write verb")
     if has_id and method in ("PUT", "PATCH", "DELETE"):
         tags.append("IDOR-write")
         why.append("id + write verb")
     if ADMIN_PATH.search(path):
         tags.append("BAC")
         why.append("privileged path prefix")
-    if LOGIC_KEYS.search(" ".join(keys)) or LOGIC_KEYS.search(qs):
+    if LOGIC_KEYS.search(" ".join(keys)) or any(LOGIC_KEYS.search(k) for k in qparams):
         tags.append("BusinessLogic")
         why.append("money/quantity field")
     if any(MASS_KEYS.match(k) for k in keys):
         tags.append("MassAssignment")
         why.append("role/owner field in body")
-    if any(SQL_PARAMS.match(p) for p in qparams):
+    if any(SQL_PARAMS.match(p) for p in qparams_valued):
         tags.append("SQLi")
         why.append("search/sort param")
-    if any(XSS_PARAMS.match(p) for p in qparams) or any(XSS_PARAMS.match(k) for k in keys):
+    if any(XSS_PARAMS.match(p) for p in qparams_valued) or any(XSS_PARAMS.match(k) for k in keys):
         tags.append("XSS")
         why.append("text param")
     if any(SSRF_PARAMS.match(p) for p in qparams) or any(SSRF_PARAMS.match(k) for k in keys):
@@ -215,6 +234,9 @@ def classify(row):
     if AUTH_PATH.search(path):
         tags.append("Auth")
         why.append("auth surface")
+    if ACCOUNT_PATH.search(path) or ACCOUNT_PATH.search(qs):
+        tags.append("Auth")
+        why.append("account/identity surface")
     if INFO_PATH.search(path):
         tags.append("InfoLeak")
         why.append("config/debug path")
