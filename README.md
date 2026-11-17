@@ -104,6 +104,7 @@ a time with you. The skill follows [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md).
 - [`docs/AI-GUIDE.md`](docs/AI-GUIDE.md) — how to work with an AI assistant, prompt by prompt
 - [`docs/AGENT.md`](docs/AGENT.md) — wiring it into an AI agent (AGENTS.md / hunt.md rules)
 - [`docs/FAQ.md`](docs/FAQ.md) — legal, privacy, disk, multiple targets
+- [`docs/LOCAL-DASHBOARDS.md`](docs/LOCAL-DASHBOARDS.md) — contract for static, copy-only hunting dashboards
 
 ## Test it
 
